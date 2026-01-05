@@ -56,3 +56,6 @@ module.exports.scripts = {
   migrate: require('./scripts/migrate'),
   seed: require('./scripts/seed')
 };
+
+// Exportar servidor
+module.exports.Server = require('./server');

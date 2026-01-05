@@ -1,13 +1,11 @@
-const pathResolver = require('../utils/pathResolver');
-const backendPath = pathResolver.getBackendPath();
-
-const bcrypt = require(backendPath + '/node_modules/bcryptjs');
-const jwt = require(backendPath + '/node_modules/jsonwebtoken');
-const md5 = require(backendPath + '/node_modules/md5');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const md5 = require('md5');
 
 // Lazy load db para evitar problemas de ordem de carregamento
 function getDb() {
-  return require(pathResolver.resolveModelsPath());
+  const modelsLoader = require('../utils/modelsLoader');
+  return modelsLoader.loadModels();
 }
 
 exports.login = async (req, res) => {

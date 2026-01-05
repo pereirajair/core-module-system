@@ -1,8 +1,4 @@
-
-const pathResolver = require('../utils/pathResolver');
-const backendPath = pathResolver.getBackendPath();
-
-const jwt = require(backendPath + '/node_modules/jsonwebtoken');
+const jwt = require('jsonwebtoken');
 
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];

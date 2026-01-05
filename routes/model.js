@@ -1,6 +1,4 @@
-const pathResolver = require('../utils/pathResolver');
-const backendPath = pathResolver.getBackendPath();
-const express = require(backendPath + '/node_modules/express');
+const express = require('express');
 const router = express.Router();
 const modelController = require('../controllers/modelController');
 const authenticateToken = require('../middleware/authenticateToken');

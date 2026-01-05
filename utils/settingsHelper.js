@@ -1,5 +1,10 @@
-const pathResolver = require('../utils/pathResolver');
-const db = require(pathResolver.resolveModelsPath());
+// Lazy load db
+function getDb() {
+  const modelsLoader = require('./modelsLoader');
+  return modelsLoader.loadModels();
+}
+
+const db = getDb();
 const Setting = db.Setting;
 
 /**

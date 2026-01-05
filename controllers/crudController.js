@@ -1,10 +1,9 @@
-const pathResolver = require('../utils/pathResolver');
-const backendPath = pathResolver.getBackendPath();
-const { Op } = require(backendPath + '/node_modules/sequelize');
+const { Op } = require('sequelize');
 
 // Lazy load db para evitar problemas de ordem de carregamento
 function getDb() {
-  return require(pathResolver.resolveModelsPath());
+  const modelsLoader = require('../utils/modelsLoader');
+  return modelsLoader.loadModels();
 }
 
 exports.getAllCruds = async (req, res) => {

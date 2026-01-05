@@ -4,7 +4,16 @@
   "description": "Módulo de sistema com funcionalidades core",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "db:create": "sequelize db:create",
+    "db:drop": "sequelize db:drop",
+    "db:migrate": "node scripts/migrate.js",
+    "db:migrate:undo": "sequelize db:migrate:undo",
+    "db:migrate:undo:all": "sequelize db:migrate:undo:all",
+    "db:seed": "node scripts/seed.js",
+    "db:seed:undo": "sequelize db:seed:undo",
+    "db:seed:undo:all": "sequelize db:seed:undo:all",
+    "db:recreate": "sequelize db:drop && sequelize db:create && node scripts/migrate.js && node scripts/seed.js"
   },
   "keywords": [
     "gestor",

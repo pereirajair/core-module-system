@@ -1,12 +1,12 @@
 const fs = require('fs');
-const pathResolver = require('../utils/pathResolver');
 const path = require('path');
 const https = require('https');
 const http = require('http');
 
 // Lazy load db para evitar problemas de ordem de carregamento
 function getDb() {
-  return require(pathResolver.resolveModelsPath());
+  const modelsLoader = require('../utils/modelsLoader');
+  return modelsLoader.loadModels();
 }
 
 const modelController = require('./modelController');

@@ -1,10 +1,8 @@
 #!/usr/bin/env node
-const pathResolver = require('../utils/pathResolver');
-const backendPath = pathResolver.getBackendPath();
 
-require(backendPath + '/node_modules/dotenv').config();
-const { Sequelize, DataTypes } = require(backendPath + '/node_modules/sequelize');
+require('dotenv').config();
 const path = require('path');
+const { Sequelize, DataTypes } = require('sequelize');
 const fs = require('fs');
 const { getModuleMigrationsPaths } = require('../utils/moduleLoader');
 
@@ -19,7 +17,7 @@ const sequelize = new Sequelize(config.database, config.username, config.passwor
 });
 
 // Caminho padrão de migrations
-const defaultMigrationsPath = path.join(__dirname, '../src/migrations');
+const defaultMigrationsPath = path.join(__dirname, '../migrations');
 
 // Obter caminhos de migrations dos módulos (já ordenados por dependências)
 const moduleMigrationsPaths = getModuleMigrationsPaths();

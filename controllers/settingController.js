@@ -1,9 +1,9 @@
-const pathResolver = require('../utils/pathResolver');
 
 
 // Lazy load db para evitar problemas de ordem de carregamento
 function getDb() {
-  return require(pathResolver.resolveModelsPath());
+  const modelsLoader = require('../utils/modelsLoader');
+  return modelsLoader.loadModels();
 }
 
 /**

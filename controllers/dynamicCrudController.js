@@ -1,20 +1,19 @@
 // Importar db dinamicamente para garantir que sempre tenha os modelos mais recentes
-const pathResolver = require('../utils/pathResolver');
-const backendPath = pathResolver.getBackendPath();
-const { Op } = require(backendPath + '/node_modules/sequelize');
+const { Op } = require('sequelize');
 const { updateHasManyAssociations } = require('../utils/associationUtils');
 
 // Lazy load db para evitar problemas de ordem de carregamento
 function getDb() {
-  return require(pathResolver.resolveModelsPath());
+  const modelsLoader = require('../utils/modelsLoader');
+  return modelsLoader.loadModels();
 }
 
 // Função para recarregar db quando necessário
 function reloadDb() {
-  // Limpar cache do models/index.js usando o pathResolver
-  const modelsIndexPath = pathResolver.resolveModelsPath();
-  if (require.cache[modelsIndexPath]) {
-    delete require.cache[modelsIndexPath];
+  // Limpar cache do modelsLoader
+  const modelsLoaderPath = require.resolve('../utils/modelsLoader');
+  if (require.cache[modelsLoaderPath]) {
+    delete require.cache[modelsLoaderPath];
   }
   // Retornar novo db
   return getDb();

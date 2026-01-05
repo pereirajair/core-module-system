@@ -3,7 +3,14 @@ const pathResolver = require('../utils/pathResolver');
 
 const fs = require('fs');
 const path = require('path');
-const db = require(pathResolver.resolveModelsPath());
+
+// Lazy load db
+function getDb() {
+  const modelsLoader = require('./modelsLoader');
+  return modelsLoader.loadModels();
+}
+
+const db = getDb();
 
 // Armazenar referência ao app Express
 let appInstance = null;

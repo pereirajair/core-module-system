@@ -1,11 +1,11 @@
 const fs = require('fs');
-const pathResolver = require('../utils/pathResolver');
 const path = require('path');
 const { execSync } = require('child_process');
 
 // Lazy load db para evitar problemas de ordem de carregamento
 function getDb() {
-  return require(pathResolver.resolveModelsPath());
+  const modelsLoader = require('../utils/modelsLoader');
+  return modelsLoader.loadModels();
 }
 
 const modelsPath = path.join(__dirname, '../../../models');

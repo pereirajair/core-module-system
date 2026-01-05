@@ -1,0 +1,12 @@
+const path = require('path');
+
+/**
+ * Configuração do Sequelize CLI para o módulo system
+ * Este arquivo é usado pelos comandos CLI do Sequelize
+ */
+module.exports = {
+  'config': path.resolve(__dirname, 'config', 'database.js'),
+  'models-path': path.resolve(__dirname, 'models'),
+  'seeders-path': path.resolve(__dirname, 'seeders'),
+  'migrations-path': path.resolve(__dirname, 'migrations')
+};

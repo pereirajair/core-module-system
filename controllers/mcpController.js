@@ -1,4 +1,3 @@
-const pathResolver = require('../utils/pathResolver');
 
 const modelController = require('./modelController');
 const dynamicReload = require('../utils/dynamicReload');
@@ -19,7 +18,8 @@ function getMCPSchema() {
 
 // Lazy load db para evitar problemas de ordem de carregamento
 function getDb() {
-  return require(pathResolver.resolveModelsPath());
+  const modelsLoader = require('../utils/modelsLoader');
+  return modelsLoader.loadModels();
 }
 
   console.log('autoSchemas');

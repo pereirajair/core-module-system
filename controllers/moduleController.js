@@ -1,14 +1,13 @@
 const fs = require('fs');
-const pathResolver = require('../utils/pathResolver');
-const backendPath = pathResolver.getBackendPath();
 const path = require('path');
-const { Sequelize, DataTypes } = require(backendPath + '/node_modules/sequelize');
+const { Sequelize, DataTypes } = require('sequelize');
 const { loadModules } = require('../utils/moduleLoader');
 
 
 // Lazy load db para evitar problemas de ordem de carregamento
 function getDb() {
-  return require(pathResolver.resolveModelsPath());
+  const modelsLoader = require('../utils/modelsLoader');
+  return modelsLoader.loadModels();
 }
 
 const modulesPath = path.join(__dirname, '../../../modules');
@@ -389,6 +388,7 @@ async function installModuleInternal(moduleName) {
   // Encontrar e executar seeder de instalação
   const installSeederPath = findInstallSeeder(moduleName);
   if (installSeederPath) {
+    const db = getDb();
     const queryInterface = db.sequelize.getQueryInterface();
     const seederModule = require(installSeederPath);
     
@@ -451,6 +451,7 @@ async function uninstallModule(req, res) {
     // Executar seeder de desinstalação
     const uninstallSeederPath = findUninstallSeeder(name);
     if (uninstallSeederPath) {
+      const db = getDb();
       const queryInterface = db.sequelize.getQueryInterface();
       const seederModule = require(uninstallSeederPath);
       

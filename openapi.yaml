@@ -1,0 +1,2348 @@
+openapi: 3.0.0
+info:
+  title: Atende API
+  version: 1.0.0
+  description: API for the Atende application
+paths:
+  /health:
+    get:
+      summary: Check API health
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+  /system/{sigla}/{type}:
+    get:
+      summary: Get system image (icon or logo)
+      parameters:
+        - in: path
+          name: sigla
+          required: true
+          schema:
+            type: string
+          description: System acronym/sigla
+        - in: path
+          name: type
+          required: true
+          schema:
+            type: string
+            enum: [icon, logo]
+          description: Type of image to retrieve (icon or logo)
+      responses:
+        '200':
+          description: System image retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  image:
+                    type: string
+                    description: Base64 encoded image
+                  type:
+                    type: string
+                    description: Image MIME type
+        '400':
+          description: Invalid image type
+        '404':
+          description: System or image not found
+  /auth/login:
+    post:
+      summary: User login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Login'
+      responses:
+        '200':
+          description: Successfully logged in
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+        '401':
+          description: Invalid credentials
+  /auth/logout:
+    post:
+      summary: User logout
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Successfully logged out
+        '401':
+          description: Unauthorized
+  /auth/impersonate:
+    post:
+      summary: Impersonate a user
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - userId
+              properties:
+                userId:
+                  type: integer
+                  description: ID of the user to impersonate
+      responses:
+        '200':
+          description: Successfully impersonating user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: JWT token for the impersonated user
+                  user:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      name:
+                        type: string
+                      email:
+                        type: string
+                  impersonatedBy:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      name:
+                        type: string
+                      email:
+                        type: string
+        '400':
+          description: Bad request - User ID is required
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - User does not have permission to impersonate
+        '404':
+          description: Target user not found
+  /api/users:
+    get:
+      summary: Get all users
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: A list of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+    post:
+      summary: Create a new user
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+  /api/users/{id}:
+    get:
+      summary: Get a user by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: A single user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: User not found
+    put:
+      summary: Update a user by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '200':
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: User not found
+    delete:
+      summary: Delete a user by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: User deleted
+        '404':
+          description: User not found
+  /api/organizations:
+    get:
+      summary: Get all organizations
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: A list of organizations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Organization'
+    post:
+      summary: Create a new organization
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Organization'
+      responses:
+        '201':
+          description: Organization created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+  /api/organizations/{id}:
+    get:
+      summary: Get an organization by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: A single organization
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '404':
+          description: Organization not found
+    put:
+      summary: Update an organization by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Organization'
+      responses:
+        '200':
+          description: Organization updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '404':
+          description: Organization not found
+    delete:
+      summary: Delete an organization by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Organization deleted
+        '404':
+          description: Organization not found
+  /api/roles:
+    get:
+      summary: Get all roles
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: A list of roles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Role'
+    post:
+      summary: Create a new role
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Role'
+      responses:
+        '201':
+          description: Role created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+  /api/roles/{id}:
+    get:
+      summary: Get a role by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: A single role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+        '404':
+          description: Role not found
+    put:
+      summary: Update a role by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Role'
+      responses:
+        '200':
+          description: Role updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+        '404':
+          description: Role not found
+    delete:
+      summary: Delete a role by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Role deleted
+        '404':
+          description: Role not found
+  /api/roles/{id}/functions:
+    get:
+      summary: Get functions for a role
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Role with functions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+        '404':
+          description: Role not found
+    put:
+      summary: Update functions for a role
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                functionIds:
+                  type: array
+                  items:
+                    type: integer
+      responses:
+        '200':
+          description: Role with updated functions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+        '404':
+          description: Role not found
+  /api/systems:
+    get:
+      summary: Get all systems
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: A list of systems
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/System'
+    post:
+      summary: Create a new system
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/System'
+      responses:
+        '201':
+          description: System created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/System'
+  /api/systems/{id}:
+    get:
+      summary: Get a system by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: A single system
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/System'
+        '404':
+          description: System not found
+    put:
+      summary: Update a system by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/System'
+      responses:
+        '200':
+          description: System updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/System'
+        '404':
+          description: System not found
+    delete:
+      summary: Delete a system by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: System deleted
+        '404':
+          description: System not found
+  /api/systems/{id}/functions:
+    get:
+      summary: Get functions for a system
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: System with functions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/System'
+        '404':
+          description: System not found
+    put:
+      summary: Update functions for a system
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                functionIds:
+                  type: array
+                  items:
+                    type: integer
+      responses:
+        '200':
+          description: System with updated functions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/System'
+        '404':
+          description: System not found
+  /api/functions:
+    get:
+      summary: Get all functions
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: A list of functions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Function'
+    post:
+      summary: Create a new function
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Function'
+      responses:
+        '201':
+          description: Function created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Function'
+  /api/functions/{id}:
+    get:
+      summary: Get a function by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: A single function
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Function'
+        '404':
+          description: Function not found
+    put:
+      summary: Update a function by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Function'
+      responses:
+        '200':
+          description: Function updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Function'
+        '404':
+          description: Function not found
+    delete:
+      summary: Delete a function by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Function deleted
+        '404':
+          description: Function not found
+  /api/contacts:
+    get:
+      summary: Get all contacts
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: A list of contacts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Contact'
+    post:
+      summary: Create a new contact
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Contact'
+      responses:
+        '201':
+          description: Contact created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+  /api/contacts/{id}:
+    get:
+      summary: Get a contact by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: A single contact
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+        '404':
+          description: Contact not found
+    put:
+      summary: Update a contact by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Contact'
+      responses:
+        '200':
+          description: Contact updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+        '404':
+          description: Contact not found
+    delete:
+      summary: Delete a contact by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Contact deleted
+        '404':
+          description: Contact not found
+  /api/channel-types:
+    get:
+      summary: Get all channel types
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: A list of channel types
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChannelType'
+    post:
+      summary: Create a new channel type
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChannelType'
+      responses:
+        '201':
+          description: Channel type created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelType'
+  /api/channel-types/{id}:
+    get:
+      summary: Get a channel type by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: A single channel type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelType'
+        '404':
+          description: Channel type not found
+    put:
+      summary: Update a channel type by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChannelType'
+      responses:
+        '200':
+          description: Channel type updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelType'
+        '404':
+          description: Channel type not found
+    delete:
+      summary: Delete a channel type by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Channel type deleted
+        '404':
+          description: Channel type not found
+  /api/channels:
+    get:
+      summary: Get all channels
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: A list of channels
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Channel'
+    post:
+      summary: Create a new channel
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Channel'
+      responses:
+        '201':
+          description: Channel created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Channel'
+  /api/channels/{id}:
+    get:
+      summary: Get a channel by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: A single channel
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Channel'
+        '404':
+          description: Channel not found
+    put:
+      summary: Update a channel by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Channel'
+      responses:
+        '200':
+          description: Channel updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Channel'
+        '404':
+          description: Channel not found
+    delete:
+      summary: Delete a channel by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Channel deleted
+        '404':
+          description: Channel not found
+  /api/conversations:
+    get:
+      summary: Get all conversations
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: id_channel
+          schema:
+            type: integer
+          required: false
+          description: Filter conversations by channel ID
+        - in: query
+          name: id_user
+          schema:
+            type: integer
+          required: false
+          description: Filter conversations by user ID
+      responses:
+        '200':
+          description: A list of conversations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Conversation'
+    post:
+      summary: Create a new conversation
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Conversation'
+      responses:
+        '201':
+          description: Conversation created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+  /api/conversations/{id}:
+    get:
+      summary: Get a conversation by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: A single conversation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+        '404':
+          description: Conversation not found
+    put:
+      summary: Update a conversation by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Conversation'
+      responses:
+        '200':
+          description: Conversation updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+        '404':
+          description: Conversation not found
+    delete:
+      summary: Delete a conversation by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Conversation deleted
+        '404':
+          description: Conversation not found
+  /api/messages:
+    get:
+      summary: Get all messages
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: id_conversation
+          schema:
+            type: integer
+          required: false
+          description: Filter messages by conversation ID
+      responses:
+        '200':
+          description: A list of messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Message'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      summary: Create a new message
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Message'
+      responses:
+        '201':
+          description: Message created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/messages/{id}:
+    get:
+      summary: Get a message by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: A single message
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Message not found
+    put:
+      summary: Update a message by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Message'
+      responses:
+        '200':
+          description: Message updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Message not found
+    delete:
+      summary: Delete a message by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Message deleted
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Message not found
+  /api/cruds:
+    get:
+      summary: Get all CRUDs
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: A list of CRUDs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Crud'
+    post:
+      summary: Create a new CRUD
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrudInput'
+      responses:
+        '201':
+          description: CRUD created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Crud'
+        '400':
+          description: Bad request - Invalid configuration or duplicate name
+  /api/cruds/{id}:
+    get:
+      summary: Get a CRUD by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: A single CRUD
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Crud'
+        '404':
+          description: CRUD not found
+    put:
+      summary: Update a CRUD by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrudInput'
+      responses:
+        '200':
+          description: CRUD updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Crud'
+        '400':
+          description: Bad request - Invalid configuration or duplicate name
+        '404':
+          description: CRUD not found
+    delete:
+      summary: Delete a CRUD by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: CRUD deleted
+        '404':
+          description: CRUD not found
+  /api/cruds/name/{name}:
+    get:
+      summary: Get a CRUD by name
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+          description: CRUD name identifier
+      responses:
+        '200':
+          description: A single CRUD
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Crud'
+        '404':
+          description: CRUD not found
+  /api/menus/user:
+    get:
+      summary: Get user menus for current system
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of menus with items for the current user's system
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Menu'
+        '401':
+          description: Unauthorized
+        '500':
+          description: Server error
+  /api/mcp:
+    post:
+      summary: Model Context Protocol (MCP) server endpoint
+      description: |
+        Servidor MCP que expõe ferramentas disponíveis para modelos de IA.
+        Suporta métodos JSON-RPC 2.0: initialize, tools/list, tools/call
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - jsonrpc
+                - method
+              properties:
+                jsonrpc:
+                  type: string
+                  enum: ['2.0']
+                  description: Versão do protocolo JSON-RPC
+                method:
+                  type: string
+                  enum: ['initialize', 'tools/list', 'tools/call']
+                  description: Método MCP a ser executado
+                params:
+                  type: object
+                  description: Parâmetros do método (varia conforme o método)
+                  additionalProperties: true
+                id:
+                  oneOf:
+                    - type: string
+                    - type: integer
+                  description: ID da requisição para correlação de resposta (opcional, pode ser omitido para null)
+      responses:
+        '200':
+          description: Resposta MCP bem-sucedida
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jsonrpc:
+                    type: string
+                    enum: ['2.0']
+                  result:
+                    type: object
+                    description: Resultado do método (varia conforme o método)
+                    additionalProperties: true
+                  error:
+                    type: object
+                    description: Erro se houver
+                    properties:
+                      code:
+                        type: integer
+                      message:
+                        type: string
+                      data:
+                        type: object
+                    additionalProperties: true
+                  id:
+                    oneOf:
+                      - type: string
+                      - type: integer
+                    description: ID da requisição (opcional, pode ser null)
+        '400':
+          description: Requisição inválida
+        '500':
+          description: Erro interno do servidor
+
+  /api/chatia:
+    post:
+      summary: Chat with AI assistant
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - message
+              properties:
+                message:
+                  type: string
+                  description: User message to the AI
+                conversation:
+                  type: array
+                  description: Previous conversation messages
+                  items:
+                    type: object
+                    properties:
+                      role:
+                        type: string
+                        enum: [user, assistant, system]
+                      content:
+                        type: string
+      responses:
+        '200':
+          description: AI response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: AI response message
+                  functionCalls:
+                    type: array
+                    description: Functions executed by the AI
+                    items:
+                      type: object
+                      properties:
+                        function:
+                          type: string
+                        params:
+                          type: object
+                        result:
+                          type: object
+        '401':
+          description: Unauthorized
+        '500':
+          description: Server error
+  /api/menus:
+    get:
+      summary: Get all menus
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of all menus
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MenuFull'
+        '401':
+          description: Unauthorized
+    post:
+      summary: Create a new menu
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MenuInput'
+      responses:
+        '201':
+          description: Menu created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuFull'
+        '400':
+          description: Invalid input
+        '401':
+          description: Unauthorized
+  /api/menus/{id}:
+    get:
+      summary: Get a menu by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: A single menu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuFull'
+        '404':
+          description: Menu not found
+        '401':
+          description: Unauthorized
+    put:
+      summary: Update a menu by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MenuInput'
+      responses:
+        '200':
+          description: Menu updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuFull'
+        '404':
+          description: Menu not found
+        '401':
+          description: Unauthorized
+    delete:
+      summary: Delete a menu by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Menu deleted successfully
+        '404':
+          description: Menu not found
+        '401':
+          description: Unauthorized
+  /api/menus/items:
+    get:
+      summary: Get all menu items
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of all menu items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MenuItemFull'
+        '401':
+          description: Unauthorized
+    post:
+      summary: Create a new menu item
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MenuItemInput'
+      responses:
+        '201':
+          description: Menu item created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuItemFull'
+        '400':
+          description: Invalid input
+        '401':
+          description: Unauthorized
+  /api/menus/items/{id}:
+    get:
+      summary: Get a menu item by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: A single menu item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuItemFull'
+        '404':
+          description: Menu item not found
+        '401':
+          description: Unauthorized
+    put:
+      summary: Update a menu item by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MenuItemInput'
+      responses:
+        '200':
+          description: Menu item updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuItemFull'
+        '404':
+          description: Menu item not found
+        '401':
+          description: Unauthorized
+    delete:
+      summary: Delete a menu item by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Menu item deleted successfully
+        '404':
+          description: Menu item not found
+        '401':
+          description: Unauthorized
+  /api/models:
+    get:
+      summary: Get all models
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: A list of models
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ModelInfo'
+    post:
+      summary: Create a new model
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModelInput'
+      responses:
+        '201':
+          description: Model created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Model'
+        '400':
+          description: Bad request
+        '403':
+          description: Forbidden
+  /api/models/{name}:
+    get:
+      summary: Get a model by name
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+          description: Model name
+      responses:
+        '200':
+          description: A single model
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Model'
+        '404':
+          description: Model not found
+    put:
+      summary: Update a model
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+          description: Model name
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModelInput'
+      responses:
+        '200':
+          description: Model updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  content:
+                    type: string
+        '404':
+          description: Model not found
+  /api/models/{name}/migration:
+    post:
+      summary: Generate migration for a model
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+          description: Model name
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fields:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Field'
+                isNew:
+                  type: boolean
+      responses:
+        '200':
+          description: Migration generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  file:
+                    type: string
+                  path:
+                    type: string
+  /api/models/{name}/seeder:
+    post:
+      summary: Generate seeder for a model
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+          description: Model name
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                data:
+                  type: array
+                  items:
+                    type: object
+      responses:
+        '200':
+          description: Seeder generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  file:
+                    type: string
+                  path:
+                    type: string
+
+components:
+  responses:
+    Forbidden:
+      description: Acesso Negado
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                example: 'Acesso Negado: Você não possui as permissões necessárias para realizar esta ação.'
+  schemas:
+    Login:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+      required:
+        - name
+        - email
+        - password
+    Organization:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+      required:
+        - name
+    Role:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+        id_system:
+          type: integer
+      required:
+        - name
+    System:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+        sigla:
+          type: string
+          description: System acronym
+        icon:
+          type: string
+          description: Base64 encoded icon image
+        logo:
+          type: string
+          description: Base64 encoded logo image
+        description:
+          type: string
+          description: System description
+        primaryColor:
+          type: string
+          description: Primary color (hex format)
+        secondaryColor:
+          type: string
+          description: Secondary color (hex format)
+        textColor:
+          type: string
+          description: Text color (hex format)
+      required:
+        - name
+    Function:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+        title:
+          type: string
+      required:
+        - name
+        - title
+    Contact:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+          format: email
+      required:
+        - name
+        - phone
+        - email
+    ChannelType:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+      required:
+        - name
+    Channel:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+        type:
+          type: integer
+        config:
+          type: object
+      required:
+        - name
+        - type
+        - config
+    Conversation:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        id_channel:
+          type: integer
+        id_user:
+          type: integer
+        id_contact:
+          type: integer
+        status:
+          type: integer
+      required:
+        - id_channel
+        - id_user
+        - id_contact
+        - status
+    Message:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        id_channel:
+          type: integer
+        id_user:
+          type: integer
+        id_contact:
+          type: integer
+        id_conversation:
+          type: integer
+        # sentAt:
+        #   type: string
+        # receivedAt:
+        #   type: string
+        id_origin:
+          type: integer
+        message:
+          type: string
+        message_type:
+          type: string
+      required:
+        - id_channel
+        - id_user
+        - id_contact
+        - id_conversation
+        - id_origin
+        - message
+        - message_type
+    Crud:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          description: Unique identifier for the CRUD
+        title:
+          type: string
+          description: Display title
+        icon:
+          type: string
+          description: Material icon name
+        resource:
+          type: string
+          description: Resource name for permissions
+        endpoint:
+          type: string
+          description: API endpoint path
+        config:
+          type: object
+          description: JSON configuration object
+          additionalProperties: true
+        active:
+          type: boolean
+          description: Whether the CRUD is active
+      required:
+        - name
+        - title
+        - resource
+        - endpoint
+        - config
+    CrudInput:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Unique identifier for the CRUD
+        title:
+          type: string
+          description: Display title
+        icon:
+          type: string
+          description: Material icon name
+        resource:
+          type: string
+          description: Resource name for permissions
+        endpoint:
+          type: string
+          description: API endpoint path
+        config:
+          type: object
+          description: JSON configuration object
+          additionalProperties: true
+        active:
+          type: boolean
+          description: Whether the CRUD is active
+      required:
+        - name
+        - title
+        - resource
+        - endpoint
+        - config
+    ModelInfo:
+      type: object
+      properties:
+        name:
+          type: string
+        className:
+          type: string
+        file:
+          type: string
+        path:
+          type: string
+    Model:
+      type: object
+      properties:
+        name:
+          type: string
+        className:
+          type: string
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/Field'
+        associations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Association'
+        options:
+          type: object
+        rawContent:
+          type: string
+    ModelInput:
+      type: object
+      properties:
+        name:
+          type: string
+        className:
+          type: string
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/Field'
+        associations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Association'
+        options:
+          type: object
+          additionalProperties: true
+      required:
+        - name
+        - className
+      additionalProperties: true
+    Field:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+        allowNull:
+          type: boolean
+        primaryKey:
+          type: boolean
+        autoIncrement:
+          type: boolean
+        defaultValue:
+          type: string
+          description: Optional default value for the field
+        unique:
+          type: boolean
+        references:
+          type: object
+          properties:
+            model:
+              type: string
+            key:
+              type: string
+          additionalProperties: true
+      additionalProperties: true
+    Association:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [belongsTo, hasMany, hasOne, belongsToMany]
+        source:
+          type: string
+        target:
+          type: string
+        foreignKey:
+          type: string
+        otherKey:
+          type: string
+        through:
+          type: string
+      additionalProperties: true
+    Menu:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MenuItem'
+    MenuItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        icon:
+          type: string
+        route:
+          type: string
+        target_blank:
+          type: boolean
+        order:
+          type: integer
+    MenuFull:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        id_system:
+          type: integer
+        id_organization:
+          type: integer
+          nullable: true
+        MenuItems:
+          type: array
+          items:
+            $ref: '#/components/schemas/MenuItemFull'
+        System:
+          type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+        Organization:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    MenuInput:
+      type: object
+      required:
+        - name
+        - id_system
+      properties:
+        name:
+          type: string
+        id_system:
+          type: integer
+        id_organization:
+          type: integer
+          nullable: true
+    MenuItemFull:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        icon:
+          type: string
+          nullable: true
+        route:
+          type: string
+        target_blank:
+          type: boolean
+        id_menu:
+          type: integer
+        id_system:
+          type: integer
+        id_organization:
+          type: integer
+          nullable: true
+        id_role:
+          type: integer
+          nullable: true
+        order:
+          type: integer
+        Menu:
+          type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+        System:
+          type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+        Organization:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+        Role:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    MenuItemInput:
+      type: object
+      required:
+        - name
+        - route
+        - id_menu
+        - id_system
+      properties:
+        name:
+          type: string
+        icon:
+          type: string
+          nullable: true
+        route:
+          type: string
+        target_blank:
+          type: boolean
+          default: false
+        id_menu:
+          type: integer
+        id_system:
+          type: integer
+        id_organization:
+          type: integer
+          nullable: true
+        id_role:
+          type: integer
+          nullable: true
+        order:
+          type: integer
+          default: 0
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
