@@ -51,12 +51,23 @@ async function runMigrations() {
         continue;
       }
 
-      // Extrair nome do módulo do caminho: .../modules/[nome-do-modulo]/migrations
+      // Extrair nome do módulo do caminho
+      // Suporta: .../modules/[nome-do-modulo]/migrations
+      //          .../node_modules/@gestor/[nome-do-modulo]/migrations
       const pathParts = migrationsPath.split(path.sep);
+      let moduleName = 'unknown';
+      
+      // Tentar encontrar em modules/
       const modulesIndex = pathParts.indexOf('modules');
-      const moduleName = modulesIndex >= 0 && modulesIndex < pathParts.length - 1 
-        ? pathParts[modulesIndex + 1] 
-        : 'unknown';
+      if (modulesIndex >= 0 && modulesIndex < pathParts.length - 1) {
+        moduleName = pathParts[modulesIndex + 1];
+      } else {
+        // Tentar encontrar em node_modules/@gestor/
+        const gestorIndex = pathParts.indexOf('@gestor');
+        if (gestorIndex >= 0 && gestorIndex < pathParts.length - 1) {
+          moduleName = pathParts[gestorIndex + 1];
+        }
+      }
 
       const files = fs.readdirSync(migrationsPath)
         .filter(file => file.endsWith('.js'))
@@ -188,5 +199,11 @@ async function runMigrations() {
   }
 }
 
-runMigrations();
+// Exportar função para uso como módulo
+module.exports = runMigrations;
+
+// Executar apenas quando chamado diretamente (não quando importado)
+if (require.main === module) {
+  runMigrations();
+}
 

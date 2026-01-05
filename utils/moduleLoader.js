@@ -71,9 +71,11 @@ function loadModules() {
   // 2. Carregar módulos npm de node_modules/@gestor/*
   // Tentar diferentes caminhos possíveis para node_modules
   const possibleNodeModulesPaths = [
-    path.join(basePath, '../node_modules'), // backend/node_modules
-    path.join(basePath, '../../node_modules'), // Raiz do projeto
+    path.join(basePath, 'backend', 'node_modules'), // {basePath}/backend/node_modules
+    path.join(basePath, '../node_modules'), // Um nível acima do basePath
+    path.join(basePath, '../../node_modules'), // Dois níveis acima
     path.join(process.cwd(), 'node_modules'), // Diretório atual de trabalho
+    path.join(process.cwd(), '../../backend/node_modules'), // Relativo ao cwd quando executado de modules/system
     path.join(__dirname, '../../../../node_modules') // Se estiver em node_modules/@gestor/system
   ];
   

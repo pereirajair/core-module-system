@@ -4031,7 +4031,7 @@ async function chatIAWithStreaming(req, res, sendEvent) {
 // Exportar funções disponíveis para uso externo (MCP)
 function getAvailableFunctions() {
   // Combinar funções manuais com wrappers automáticos dos controllers
-  const autoMCP = require('../../../utils/autoMCP');
+  const autoMCP = require('../utils/autoMCP');
   const autoWrappers = autoMCP.getAllMCPWrappers();
   
   return {

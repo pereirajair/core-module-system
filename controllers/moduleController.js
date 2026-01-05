@@ -516,6 +516,47 @@ function enableModuleInConfig(modulePath) {
   return false;
 }
 
+// Funções auxiliares internas para executar migrations e seeders
+async function runMigrationsInternal() {
+  try {
+    console.log('🔄 Executando migrations...');
+    const { execSync } = require('child_process');
+    const result = execSync('npm run db:migrate', {
+      cwd: process.cwd(),
+      encoding: 'utf8'
+    });
+    console.log('✅ Migrations executadas com sucesso');
+    return { success: true, output: result };
+  } catch (error) {
+    console.error('❌ Erro ao executar migrations:', error);
+    return { 
+      success: false, 
+      error: error.message, 
+      output: error.stdout || error.stderr 
+    };
+  }
+}
+
+async function runSeedersInternal() {
+  try {
+    console.log('🔄 Executando seeders...');
+    const { execSync } = require('child_process');
+    const result = execSync('npm run db:seed', {
+      cwd: process.cwd(),
+      encoding: 'utf8'
+    });
+    console.log('✅ Seeders executados com sucesso');
+    return { success: true, output: result };
+  } catch (error) {
+    console.error('❌ Erro ao executar seeders:', error);
+    return { 
+      success: false, 
+      error: error.message, 
+      output: error.stdout || error.stderr 
+    };
+  }
+}
+
 // Instalar módulo via npm
 async function installModuleFromNpm(req, res) {
   try {
@@ -583,18 +624,40 @@ async function installModuleFromNpm(req, res) {
       packageName.includes(`@gestor/${m.name}`)
     );
 
+    // Executar migrations automaticamente
+    console.log('🚀 Executando migrations do módulo instalado...');
+    const migrationsResult = await runMigrationsInternal();
+    
+    // Executar seeders automaticamente
+    console.log('🚀 Executando seeders do módulo instalado...');
+    const seedersResult = await runSeedersInternal();
+    
+    // Recarregar rotas dinâmicas
+    console.log('🚀 Recarregando rotas dinâmicas...');
+    const dynamicReload = require('../utils/dynamicReload');
+    const reloadResult = await dynamicReload.reloadDynamicRoutes();
+
     res.json({
       success: true,
-      message: 'Módulo instalado com sucesso via npm',
+      message: 'Módulo instalado e configurado com sucesso',
       packageName,
       output: output.trim(),
       module: installedModule || null,
       enabled: installedModule ? installedModule.enabled : false,
-      nextSteps: [
-        'Execute migrations: npm run db:migrate',
-        'Execute seeders: npm run db:seed',
-        installedModule && !installedModule.enabled ? `Ative o módulo em: /api/modules/${installedModule.name}/install` : null
-      ].filter(Boolean)
+      migrations: {
+        executed: migrationsResult.success,
+        message: migrationsResult.success ? 'Migrations executadas com sucesso' : 'Erro ao executar migrations',
+        output: migrationsResult.output || migrationsResult.error
+      },
+      seeders: {
+        executed: seedersResult.success,
+        message: seedersResult.success ? 'Seeders executados com sucesso' : 'Erro ao executar seeders',
+        output: seedersResult.output || seedersResult.error
+      },
+      dynamicRoutes: {
+        reloaded: reloadResult.success,
+        message: reloadResult.message
+      }
     });
 
   } catch (error) {
