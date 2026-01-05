@@ -1,12 +1,14 @@
 #!/usr/bin/env node
+const pathResolver = require('../utils/pathResolver');
+const backendPath = pathResolver.getBackendPath();
 
-require('dotenv').config();
-const { Sequelize, DataTypes } = require('sequelize');
+require(backendPath + '/node_modules/dotenv').config();
+const { Sequelize, DataTypes } = require(backendPath + '/node_modules/sequelize');
 const path = require('path');
 const fs = require('fs');
-const { getModuleMigrationsPaths } = require('../src/utils/moduleLoader');
+const { getModuleMigrationsPaths } = require('../utils/moduleLoader');
 
-const config = require('../src/config/database.js')[process.env.NODE_ENV || 'development'];
+const config = require('../config/database.js')[process.env.NODE_ENV || 'development'];
 
 // Criar instância do Sequelize
 const sequelize = new Sequelize(config.database, config.username, config.password, {

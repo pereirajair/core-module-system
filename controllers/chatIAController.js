@@ -6,7 +6,7 @@ const http = require('http');
 const db = require(pathResolver.resolveModelsPath());
 const { Crud, Function, Menu, MenuItems, Role, System, ModelDefinition } = db;
 const modelController = require('./modelController');
-const dynamicReload = require('../../../utils/dynamicReload');
+const dynamicReload = require('../utils/dynamicReload');
 
 // Variável global de debug do chat (controlada por variável de ambiente)
 const CHAT_DEBUG = process.env.CHAT_DEBUG === 'true' || process.env.CHAT_DEBUG === '1';

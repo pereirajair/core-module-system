@@ -1,8 +1,8 @@
-const db = require(pathResolver.resolveModelsPath());
 const pathResolver = require('../utils/pathResolver');
+const db = require(pathResolver.resolveModelsPath());
 const { Crud, Function, Menu, MenuItems, Role, System, ModelDefinition } = db;
 const modelController = require('./modelController');
-const dynamicReload = require('../../../utils/dynamicReload');
+const dynamicReload = require('../utils/dynamicReload');
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
@@ -11,7 +11,7 @@ const { execSync } = require('child_process');
 const chatIAFunctions = require('./chatIAController');
 
 // Importar sistema de descoberta automática de MCP
-const autoMCP = require('../../../utils/autoMCP');
+const autoMCP = require('../utils/autoMCP');
 
 // Schema MCP das ferramentas disponíveis
 function getMCPSchema() {

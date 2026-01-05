@@ -1,7 +1,8 @@
-const db = require(pathResolver.resolveModelsPath());
 const pathResolver = require('../utils/pathResolver');
+const backendPath = pathResolver.getBackendPath();
+const db = require(pathResolver.resolveModelsPath());
 const Crud = db.Crud;
-const { Op } = require('sequelize');
+const { Op } = require(backendPath + '/node_modules/sequelize');
 
 exports.getAllCruds = async (req, res) => {
   try {

@@ -1,8 +1,9 @@
 const fs = require('fs');
 const pathResolver = require('../utils/pathResolver');
+const backendPath = pathResolver.getBackendPath();
 const path = require('path');
-const { Sequelize, DataTypes } = require('sequelize');
-const { loadModules } = require('../../../utils/moduleLoader');
+const { Sequelize, DataTypes } = require(backendPath + '/node_modules/sequelize');
+const { loadModules } = require('../utils/moduleLoader');
 const db = require(pathResolver.resolveModelsPath());
 
 const modulesPath = path.join(__dirname, '../../../modules');

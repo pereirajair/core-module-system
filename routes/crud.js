@@ -1,4 +1,8 @@
-const express = require('express');
+const pathResolver = require('../utils/pathResolver');
+const backendPath = pathResolver.getBackendPath();
+
+
+const express = require(backendPath + '/node_modules/express');
 const router = express.Router();
 const crudController = require('../controllers/crudController');
 const authenticateToken = require('../middleware/authenticateToken');

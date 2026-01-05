@@ -1,6 +1,8 @@
 'use strict';
-const md5 = require('md5');
 
+const pathResolver = require('../utils/pathResolver');
+const backendPath = pathResolver.getBackendPath();
+const md5 = require(backendPath + '/node_modules/md5');
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up (queryInterface, Sequelize) {

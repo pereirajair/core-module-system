@@ -1,4 +1,7 @@
-require('dotenv').config();
+const pathResolver = require('../utils/pathResolver');
+const backendPath = pathResolver.getBackendPath();
+
+require(backendPath + '/node_modules/dotenv').config();
 const path = require('path');
 const { getModuleMigrationsPaths, getModuleSeedersPaths } = require('../utils/moduleLoader');
 

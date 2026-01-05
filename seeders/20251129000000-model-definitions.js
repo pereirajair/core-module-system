@@ -5,7 +5,7 @@ const path = require('path');
 
 module.exports = {
   async up(queryInterface, Sequelize) {
-    const modelsPath = path.join(__dirname, '../../../models');
+    const modelsPath = path.join(__dirname, '../models');
     const modelController = require('../controllers/modelController');
     
     // Lista de models de sistema

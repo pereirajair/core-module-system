@@ -1,9 +1,11 @@
-const bcrypt = require('bcryptjs');
 const pathResolver = require('../utils/pathResolver');
-const jwt = require('jsonwebtoken');
+const backendPath = pathResolver.getBackendPath();
+
+const bcrypt = require(backendPath + '/node_modules/bcryptjs');
+const jwt = require(backendPath + '/node_modules/jsonwebtoken');
 const db = require(pathResolver.resolveModelsPath());
 const User = db.User;
-const md5 = require('md5');
+const md5 = require(backendPath + '/node_modules/md5');
 
 exports.login = async (req, res) => {
   const { email, password } = req.body;

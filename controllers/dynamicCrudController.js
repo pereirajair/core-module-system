@@ -1,8 +1,9 @@
 // Importar db dinamicamente para garantir que sempre tenha os modelos mais recentes
 const pathResolver = require('../utils/pathResolver');
+const backendPath = pathResolver.getBackendPath();
 let db = require(pathResolver.resolveModelsPath());
-const { Op } = require('sequelize');
-const { updateHasManyAssociations } = require('../../../utils/associationUtils');
+const { Op } = require(backendPath + '/node_modules/sequelize');
+const { updateHasManyAssociations } = require('../utils/associationUtils');
 
 // Função para recarregar db quando necessário
 function reloadDb() {
