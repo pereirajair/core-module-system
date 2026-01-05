@@ -1,11 +1,16 @@
-const db = require(pathResolver.resolveModelsPath());
 const pathResolver = require('../utils/pathResolver');
-const System = db.System;
-const Function = db.Function;
 const { Op } = require('sequelize');
+
+// Lazy load db para evitar problemas de ordem de carregamento
+function getDb() {
+  return require(pathResolver.resolveModelsPath());
+}
 
 exports.getAllSystems = async (req, res) => {
   try {
+    const db = getDb();
+    const System = db.System;
+    
     const filter = req.query.filter || '';
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 30;
@@ -54,6 +59,9 @@ exports.getAllSystems = async (req, res) => {
 
 exports.getSystemById = async (req, res) => {
   try {
+    const db = getDb();
+    const System = db.System;
+    
     const system = await System.findByPk(req.params.id, {
       // include: [
       // { model: Function, through: { attributes: [] } }
@@ -70,6 +78,10 @@ exports.getSystemById = async (req, res) => {
 
 exports.createSystem = async (req, res) => {
   try {
+    const db = getDb();
+    const System = db.System;
+    const Function = db.Function;
+    
     const { name, sigla, icon, logo, description, primaryColor, secondaryColor, textColor, functionIds } = req.body;
     const system = await System.create({
       name,
@@ -102,6 +114,9 @@ exports.createSystem = async (req, res) => {
 
 exports.updateSystem = async (req, res) => {
   try {
+    const db = getDb();
+    const System = db.System;
+    
     const { name, sigla, icon, logo, description, primaryColor, secondaryColor, textColor } = req.body;
     const system = await System.findByPk(req.params.id);
     if (!system) {
@@ -124,6 +139,9 @@ exports.updateSystem = async (req, res) => {
 
 exports.deleteSystem = async (req, res) => {
   try {
+    const db = getDb();
+    const System = db.System;
+    
     const system = await System.findByPk(req.params.id);
     if (!system) {
       return res.status(404).json({ message: 'System not found' });
@@ -137,6 +155,10 @@ exports.deleteSystem = async (req, res) => {
 
 exports.updateSystemFunctions = async (req, res) => {
   try {
+    const db = getDb();
+    const System = db.System;
+    const Function = db.Function;
+    
     const { functionIds } = req.body;
     const system = await System.findByPk(req.params.id);
     if (!system) {
@@ -156,6 +178,10 @@ exports.updateSystemFunctions = async (req, res) => {
 
 exports.getSystemFunctions = async (req, res) => {
   try {
+    const db = getDb();
+    const System = db.System;
+    const Function = db.Function;
+    
     const system = await System.findByPk(req.params.id, {
       include: [
         { model: Function, through: { attributes: [] } }
@@ -172,6 +198,9 @@ exports.getSystemFunctions = async (req, res) => {
 
 exports.getSystemImage = async (req, res) => {
   try {
+    const db = getDb();
+    const System = db.System;
+    
     const { sigla, type } = req.params; // type será 'icon' ou 'logo'
 
     if (!['icon', 'logo'].includes(type)) {
@@ -206,4 +235,3 @@ exports.getSystemImage = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-

@@ -4,7 +4,12 @@ const backendPath = pathResolver.getBackendPath();
 const path = require('path');
 const { Sequelize, DataTypes } = require(backendPath + '/node_modules/sequelize');
 const { loadModules } = require('../utils/moduleLoader');
-const db = require(pathResolver.resolveModelsPath());
+
+
+// Lazy load db para evitar problemas de ordem de carregamento
+function getDb() {
+  return require(pathResolver.resolveModelsPath());
+}
 
 const modulesPath = path.join(__dirname, '../../../modules');
 

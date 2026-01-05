@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const organizationController = require('../controllers/organizationController');
-const authenticateToken = require('../../../middleware/authenticateToken');
-const authorizeFunctions = require('../../../middleware/authorizeFunctions');
+const authenticateToken = require('../middleware/authenticateToken');
+const authorizeFunctions = require('../middleware/authorizeFunctions');
 
 router.get('/', authenticateToken, authorizeFunctions('org.visualizar_organizacoes'), organizationController.getAllOrganizations);
 router.post('/', authenticateToken, authorizeFunctions('org.manter_organizacoes'), organizationController.createOrganization);

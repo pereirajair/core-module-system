@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
-const authenticateToken = require('../../../middleware/authenticateToken');
-const authorizeFunctions = require('../../../middleware/authorizeFunctions');
+const authenticateToken = require('../middleware/authenticateToken');
+const authorizeFunctions = require('../middleware/authorizeFunctions');
 
 // Rotas do usuário logado
 router.get('/me/systems', authenticateToken, userController.getUserSystems);

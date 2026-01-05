@@ -148,7 +148,7 @@ async function runSeeders() {
     }
 
     await sequelize.close();
-    process.exit(0);
+    // process.exit(0);
   } catch (error) {
     console.error('❌ Erro ao executar seeders:', error);
     await sequelize.close();

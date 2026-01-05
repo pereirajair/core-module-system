@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const roleController = require('../controllers/roleController');
-const authenticateToken = require('../../../middleware/authenticateToken');
-const authorizeFunctions = require('../../../middleware/authorizeFunctions');
+const authenticateToken = require('../middleware/authenticateToken');
+const authorizeFunctions = require('../middleware/authorizeFunctions');
 
 router.get('/', authenticateToken, authorizeFunctions('role.visualizar_roles'), roleController.getAllRoles);
 router.get('/:id', authenticateToken, authorizeFunctions('role.visualizar_roles'), roleController.getRoleById);

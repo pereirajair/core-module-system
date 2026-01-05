@@ -3,9 +3,12 @@ const backendPath = pathResolver.getBackendPath();
 
 const bcrypt = require(backendPath + '/node_modules/bcryptjs');
 const jwt = require(backendPath + '/node_modules/jsonwebtoken');
-const db = require(pathResolver.resolveModelsPath());
-const User = db.User;
 const md5 = require(backendPath + '/node_modules/md5');
+
+// Lazy load db para evitar problemas de ordem de carregamento
+function getDb() {
+  return require(pathResolver.resolveModelsPath());
+}
 
 exports.login = async (req, res) => {
   const { email, password } = req.body;
@@ -18,6 +21,9 @@ exports.login = async (req, res) => {
   }
 
   try {
+    const db = getDb();
+    const User = db.User;
+    
     const user = await User.scope('withPassword').findOne({
       where: { email },
       include: [
@@ -105,6 +111,9 @@ exports.logout = (req, res) => {
 
 exports.impersonate = async (req, res) => {
   try {
+    const db = getDb();
+    const User = db.User;
+    
     const { userId } = req.body;
     const currentUserId = req.user.id;
 

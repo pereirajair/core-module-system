@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const settingController = require('../controllers/settingController');
-const authenticateToken = require('../../../middleware/authenticateToken');
-const authorizeFunctions = require('../../../middleware/authorizeFunctions');
+const authenticateToken = require('../middleware/authenticateToken');
+const authorizeFunctions = require('../middleware/authorizeFunctions');
 
 // Get setting value by module and name (with scope resolution)
 router.get('/value/:moduleName/:name', authenticateToken, settingController.getSettingValue);

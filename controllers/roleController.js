@@ -1,12 +1,20 @@
-const db = require(pathResolver.resolveModelsPath());
 const pathResolver = require('../utils/pathResolver');
-const Role = db.Role;
-const Function = db.Function;
-const System = db.System;
+
 const { Op } = require('sequelize');
+
+// Lazy load db para evitar problemas de ordem de carregamento
+function getDb() {
+  return require(pathResolver.resolveModelsPath());
+}
 
 exports.getAllRoles = async (req, res) => {
   try {
+    const db = getDb();
+    const Role = db.Role;
+    const System = db.System;
+    const Function = db.Function;
+    const User = db.User;
+    
     const filter = req.query.filter || '';
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 30;
@@ -58,6 +66,10 @@ exports.getAllRoles = async (req, res) => {
 
 exports.getRoleById = async (req, res) => {
   try {
+    const db = getDb();
+    const Role = db.Role;
+    const Function = db.Function;
+    
     const role = await Role.findByPk(req.params.id, {
       include: [
         { model: Function, through: { attributes: [] } }
@@ -74,6 +86,10 @@ exports.getRoleById = async (req, res) => {
 
 exports.createRole = async (req, res) => {
   try {
+    const db = getDb();
+    const Role = db.Role;
+    const Function = db.Function;
+    
     const { name, id_system, functionIds } = req.body;
     const role = await Role.create({ name, id_system });
     
@@ -97,6 +113,9 @@ exports.createRole = async (req, res) => {
 
 exports.updateRole = async (req, res) => {
   try {
+    const db = getDb();
+    const Role = db.Role;
+    
     const { name, id_system } = req.body;
     const role = await Role.findByPk(req.params.id);
     if (!role) {
@@ -113,6 +132,9 @@ exports.updateRole = async (req, res) => {
 
 exports.deleteRole = async (req, res) => {
   try {
+    const db = getDb();
+    const Role = db.Role;
+    
     const role = await Role.findByPk(req.params.id);
     if (!role) {
       return res.status(404).json({ message: 'Role not found' });
@@ -126,6 +148,10 @@ exports.deleteRole = async (req, res) => {
 
 exports.updateRoleFunctions = async (req, res) => {
   try {
+    const db = getDb();
+    const Role = db.Role;
+    const Function = db.Function;
+    
     const { functionIds } = req.body;
     const role = await Role.findByPk(req.params.id);
     if (!role) {
@@ -145,6 +171,10 @@ exports.updateRoleFunctions = async (req, res) => {
 
 exports.getRoleFunctions = async (req, res) => {
   try {
+    const db = getDb();
+    const Role = db.Role;
+    const Function = db.Function;
+    
     const role = await Role.findByPk(req.params.id, {
       include: [
         { model: Function, through: { attributes: [] } }

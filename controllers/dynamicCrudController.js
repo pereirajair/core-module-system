@@ -1,26 +1,30 @@
 // Importar db dinamicamente para garantir que sempre tenha os modelos mais recentes
 const pathResolver = require('../utils/pathResolver');
 const backendPath = pathResolver.getBackendPath();
-let db = require(pathResolver.resolveModelsPath());
 const { Op } = require(backendPath + '/node_modules/sequelize');
 const { updateHasManyAssociations } = require('../utils/associationUtils');
 
+// Lazy load db para evitar problemas de ordem de carregamento
+function getDb() {
+  return require(pathResolver.resolveModelsPath());
+}
+
 // Função para recarregar db quando necessário
 function reloadDb() {
-  // Limpar cache do models/index.js
-  const modelsIndexPath = require.resolve('../../../models/index.js');
+  // Limpar cache do models/index.js usando o pathResolver
+  const modelsIndexPath = pathResolver.resolveModelsPath();
   if (require.cache[modelsIndexPath]) {
     delete require.cache[modelsIndexPath];
   }
-  // Recarregar db
-  db = require(pathResolver.resolveModelsPath());
+  // Retornar novo db
+  return getDb();
 }
 
 // Controller genérico para CRUDs dinâmicos
 async function handleDynamicCrud(req, res, next) {
   try {
     // Recarregar db para garantir que temos os modelos mais recentes
-    reloadDb();
+    const db = reloadDb();
 
     const { resource } = req.params;
     const method = req.method;

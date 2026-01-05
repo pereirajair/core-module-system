@@ -49,7 +49,7 @@ function resolveBackendPath(relativePath) {
  * Resolve caminho para models do projeto principal
  */
 function resolveModelsPath() {
-  return resolveBackendPath('src/models');
+  return resolveBackendPath('src/models/index.js');
 }
 
 /**

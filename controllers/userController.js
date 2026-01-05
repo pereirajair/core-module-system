@@ -1,13 +1,18 @@
-const db = require(pathResolver.resolveModelsPath());
 const pathResolver = require('../utils/pathResolver');
-const User = db.User;
-const Role = db.Role;
-const Organization = db.Organization;
-const System = db.System;
 const { Op } = require('sequelize');
+
+// Lazy load db para evitar problemas de ordem de carregamento
+function getDb() {
+  return require(pathResolver.resolveModelsPath());
+}
 
 exports.getUserSystems = async (req, res) => {
   try {
+    const db = getDb();
+    const User = db.User;
+    const Role = db.Role;
+    const System = db.System;
+    
     const userId = req.user.id;
     const user = await User.findByPk(userId, {
       include: [
@@ -44,6 +49,10 @@ exports.getUserSystems = async (req, res) => {
 
 exports.getUserOrganizations = async (req, res) => {
   try {
+    const db = getDb();
+    const User = db.User;
+    const Organization = db.Organization;
+    
     const userId = req.user.id;
     const user = await User.findByPk(userId, {
       include: [
@@ -68,6 +77,11 @@ exports.getUserOrganizations = async (req, res) => {
 
 exports.getAllUsers = async (req, res) => {
   try {
+    const db = getDb();
+    const User = db.User;
+    const Role = db.Role;
+    const Organization = db.Organization;
+    
     const filter = req.query.filter || '';
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 30;
@@ -120,6 +134,11 @@ exports.getAllUsers = async (req, res) => {
 
 exports.getUserById = async (req, res) => {
   try {
+    const db = getDb();
+    const User = db.User;
+    const Role = db.Role;
+    const Organization = db.Organization;
+    
     const user = await User.findByPk(req.params.id, {
       include: [
         {
@@ -146,6 +165,11 @@ exports.getUserById = async (req, res) => {
 
 exports.createUser = async (req, res) => {
   try {
+    const db = getDb();
+    const User = db.User;
+    const Role = db.Role;
+    const Organization = db.Organization;
+    
     const { name, email, password, roleIds, organizationIds } = req.body;
     const user = await User.create({ name, email, password });
 
@@ -182,6 +206,11 @@ exports.createUser = async (req, res) => {
 
 exports.updateUser = async (req, res) => {
   try {
+    const db = getDb();
+    const User = db.User;
+    const Role = db.Role;
+    const Organization = db.Organization;
+    
     const { name, email, password, roleIds, organizationIds } = req.body;
     const user = await User.findByPk(req.params.id);
     if (!user) {
@@ -229,6 +258,9 @@ exports.updateUser = async (req, res) => {
 
 exports.deleteUser = async (req, res) => {
   try {
+    const db = getDb();
+    const User = db.User;
+    
     const user = await User.findByPk(req.params.id);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -242,6 +274,11 @@ exports.deleteUser = async (req, res) => {
 
 exports.updateUserRoles = async (req, res) => {
   try {
+    const db = getDb();
+    const User = db.User;
+    const Role = db.Role;
+    const Organization = db.Organization;
+    
     const { roleIds } = req.body;
     const user = await User.findByPk(req.params.id);
     if (!user) {
@@ -262,6 +299,11 @@ exports.updateUserRoles = async (req, res) => {
 
 exports.updateUserOrganizations = async (req, res) => {
   try {
+    const db = getDb();
+    const User = db.User;
+    const Role = db.Role;
+    const Organization = db.Organization;
+    
     const { organizationIds } = req.body;
     const user = await User.findByPk(req.params.id);
     if (!user) {

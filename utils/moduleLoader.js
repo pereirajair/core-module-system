@@ -2,6 +2,29 @@
 
 const fs = require('fs');
 const path = require('path');
+const Module = require('module');
+
+// PATCH: Permitir que módulos fora do backend encontrem dependências do backend
+const originalNodeModulePaths = Module._nodeModulePaths;
+Module._nodeModulePaths = function(from) {
+    const paths = originalNodeModulePaths.call(this, from);
+    // Adiciona o node_modules do backend
+    // __dirname = .../modules/system/utils
+    // ../../../ = .../
+    // ../../../backend/node_modules = .../backend/node_modules
+    const backendNodeModules = path.resolve(__dirname, '../../../backend/node_modules');
+    // Adicionar apenas se o caminho realmente existir e não estiver duplicado
+    if (fs.existsSync(backendNodeModules) && !paths.includes(backendNodeModules)) {
+        paths.push(backendNodeModules);
+    }
+    return paths;
+};
+
+/**
+ * Carrega todos os módulos disponíveis
+
+const fs = require('fs');
+const path = require('path');
 
 /**
  * Carrega todos os módulos disponíveis

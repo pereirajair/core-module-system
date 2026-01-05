@@ -1,15 +1,17 @@
-const db = require(pathResolver.resolveModelsPath());
 const pathResolver = require('../utils/pathResolver');
-const Setting = db.Setting;
-const System = db.System;
-const User = db.User;
-const Organization = db.Organization;
+
+
+// Lazy load db para evitar problemas de ordem de carregamento
+function getDb() {
+  return require(pathResolver.resolveModelsPath());
+}
 
 /**
  * Get all settings with optional filtering
  */
 exports.getAllSettings = async (req, res) => {
     try {
+    const db = getDb();
         const { moduleName, id_system, id_user, id_organization, active } = req.query;
 
         const where = {};
@@ -41,6 +43,7 @@ exports.getAllSettings = async (req, res) => {
  */
 exports.getSettingById = async (req, res) => {
     try {
+    const db = getDb();
         const setting = await Setting.findByPk(req.params.id, {
             include: [
                 { model: System, as: 'System', attributes: ['id', 'name'] },
@@ -66,6 +69,7 @@ exports.getSettingById = async (req, res) => {
  */
 exports.getSettingValue = async (req, res) => {
     try {
+    const db = getDb();
         const { moduleName, name } = req.params;
         const { id_system, id_user, id_organization } = req.query;
 
@@ -143,6 +147,7 @@ exports.getSettingValue = async (req, res) => {
  */
 exports.createSetting = async (req, res) => {
     try {
+    const db = getDb();
         const { id_system, id_user, id_organization, moduleName, name, description, configType, configValue, active } = req.body;
 
         // Validate that at least one ID is provided
@@ -184,6 +189,7 @@ exports.createSetting = async (req, res) => {
  */
 exports.updateSetting = async (req, res) => {
     try {
+    const db = getDb();
         const setting = await Setting.findByPk(req.params.id);
 
         if (!setting) {
@@ -231,6 +237,7 @@ exports.updateSetting = async (req, res) => {
  */
 exports.deleteSetting = async (req, res) => {
     try {
+    const db = getDb();
         const setting = await Setting.findByPk(req.params.id);
 
         if (!setting) {

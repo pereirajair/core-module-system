@@ -1,14 +1,19 @@
 // Resolver caminho para models do projeto principal
 const pathResolver = require('../utils/pathResolver');
-const modelsPath = pathResolver.resolveModelsPath();
-const db = require(modelsPath);
-const User = db.User;
-const Role = db.Role;
-const Function = db.Function;
+
+// Lazy load db para evitar problemas de ordem de carregamento
+function getDb() {
+  return require(pathResolver.resolveModelsPath());
+}
 
 const authorizeFunctions = (...requiredFunctions) => {
   return async (req, res, next) => {
     try {
+      const db = getDb();
+      const User = db.User;
+      const Role = db.Role;
+      const Function = db.Function;
+      
       if (!req.user || !req.user.id) {
         return res.status(401).json({ message: 'Unauthorized: User not found in token' });
       }

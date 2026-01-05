@@ -1,8 +1,19 @@
-const db = require(pathResolver.resolveModelsPath()); const { MenuItems, Menu, System, Organization, Role } = db;
 const pathResolver = require('../utils/pathResolver');
+
+// Lazy load db para evitar problemas de ordem de carregamento
+function getDb() {
+  return require(pathResolver.resolveModelsPath());
+}
 
 async function getAllMenuItems(req, res) {
   try {
+    const db = getDb();
+    const MenuItems = db.MenuItems;
+    const Menu = db.Menu;
+    const System = db.System;
+    const Organization = db.Organization;
+    const Role = db.Role;
+    
     const menuItems = await MenuItems.findAll({
       include: [
         { model: Menu, attributes: ['id', 'name'] },
@@ -21,6 +32,13 @@ async function getAllMenuItems(req, res) {
 
 async function getMenuItemById(req, res) {
   try {
+    const db = getDb();
+    const MenuItems = db.MenuItems;
+    const Menu = db.Menu;
+    const System = db.System;
+    const Organization = db.Organization;
+    const Role = db.Role;
+    
     const menuItem = await MenuItems.findByPk(req.params.id, {
       include: [
         { model: Menu, attributes: ['id', 'name'] },
@@ -41,6 +59,9 @@ async function getMenuItemById(req, res) {
 
 async function createMenuItem(req, res) {
   try {
+    const db = getDb();
+    const MenuItems = db.MenuItems;
+    
     const { name, icon, route, target_blank, id_menu, id_system, id_organization, id_role, order } = req.body;
     const menuItem = await MenuItems.create({
       name,
@@ -62,6 +83,9 @@ async function createMenuItem(req, res) {
 
 async function updateMenuItem(req, res) {
   try {
+    const db = getDb();
+    const MenuItems = db.MenuItems;
+    
     const { name, icon, route, target_blank, id_menu, id_system, id_organization, id_role, order } = req.body;
     const menuItem = await MenuItems.findByPk(req.params.id);
     if (!menuItem) {
@@ -87,6 +111,9 @@ async function updateMenuItem(req, res) {
 
 async function deleteMenuItem(req, res) {
   try {
+    const db = getDb();
+    const MenuItems = db.MenuItems;
+    
     const menuItem = await MenuItems.findByPk(req.params.id);
     if (!menuItem) {
       return res.status(404).json({ message: 'Menu item não encontrado' });

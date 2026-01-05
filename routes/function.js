@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const functionController = require('../controllers/functionController');
-const authenticateToken = require('../../../middleware/authenticateToken');
-const authorizeFunctions = require('../../../middleware/authorizeFunctions');
+const authenticateToken = require('../middleware/authenticateToken');
+const authorizeFunctions = require('../middleware/authorizeFunctions');
 
 router.get('/', authenticateToken, authorizeFunctions('func.visualizar_funcoes'), functionController.getAllFunctions);
 router.get('/:id', authenticateToken, authorizeFunctions('func.visualizar_funcoes'), functionController.getFunctionById);

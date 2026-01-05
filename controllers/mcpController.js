@@ -1,6 +1,5 @@
 const pathResolver = require('../utils/pathResolver');
-const db = require(pathResolver.resolveModelsPath());
-const { Crud, Function, Menu, MenuItems, Role, System, ModelDefinition } = db;
+
 const modelController = require('./modelController');
 const dynamicReload = require('../utils/dynamicReload');
 const fs = require('fs');
@@ -17,6 +16,11 @@ const autoMCP = require('../utils/autoMCP');
 function getMCPSchema() {
   // Obter schemas automáticos dos controllers
   const autoSchemas = autoMCP.generateAllMCPSchemas();
+
+// Lazy load db para evitar problemas de ordem de carregamento
+function getDb() {
+  return require(pathResolver.resolveModelsPath());
+}
 
   console.log('autoSchemas');
   console.log(autoSchemas);

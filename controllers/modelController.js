@@ -2,8 +2,11 @@ const fs = require('fs');
 const pathResolver = require('../utils/pathResolver');
 const path = require('path');
 const { execSync } = require('child_process');
-const db = require(pathResolver.resolveModelsPath());
-const { ModelDefinition } = db;
+
+// Lazy load db para evitar problemas de ordem de carregamento
+function getDb() {
+  return require(pathResolver.resolveModelsPath());
+}
 
 const modelsPath = path.join(__dirname, '../../../models');
 const migrationsPath = path.join(__dirname, '../../../migrations');
@@ -45,7 +48,7 @@ function isSystemModel(name, content) {
 // Obter lista de models de todos os módulos
 async function getAllModels(req, res) {
   try {
-    const { loadModules } = require('../../../utils/moduleLoader');
+    const { loadModules } = require('../utils/moduleLoader');
     const modules = loadModules();
     const allModels = [];
 
@@ -146,7 +149,7 @@ async function getAllModels(req, res) {
 function normalizeModelName(name) {
   if (!name) return null;
 
-  const { loadModules } = require('../../../utils/moduleLoader');
+  const { loadModules } = require('../utils/moduleLoader');
   const modules = loadModules();
   const nameLower = name.toLowerCase();
 
@@ -227,7 +230,7 @@ function normalizeModelName(name) {
 
 // Função auxiliar para encontrar o caminho do arquivo da model em todos os módulos
 function findModelFilePath(normalizedName) {
-  const { loadModules } = require('../../../utils/moduleLoader');
+  const { loadModules } = require('../utils/moduleLoader');
   const modules = loadModules();
 
   // Buscar na pasta padrão primeiro
@@ -252,6 +255,9 @@ function findModelFilePath(normalizedName) {
 // Obter detalhes de uma model
 async function getModel(req, res) {
   try {
+    const db = getDb();
+    const ModelDefinition = db.ModelDefinition;
+    
     const { name } = req.params;
 
     // Normalizar nome da model (singular/plural)
@@ -538,6 +544,9 @@ function parseAssociations(associateStr) {
 // Criar nova model
 async function createModel(req, res) {
   try {
+    const db = getDb();
+    const ModelDefinition = db.ModelDefinition;
+    
     const { name, className, fields, associations, options, module } = req.body;
 
     if (!name || !className) {
@@ -547,7 +556,7 @@ async function createModel(req, res) {
     // Determinar caminho baseado no módulo
     let targetModelsPath, filePath;
     if (module) {
-      const { loadModules } = require('../../../utils/moduleLoader');
+      const { loadModules } = require('../utils/moduleLoader');
       const modules = loadModules();
       const moduleExists = modules.find(m => m.name === module && m.enabled);
 
@@ -613,6 +622,9 @@ async function createModel(req, res) {
 // Atualizar model
 async function updateModel(req, res) {
   try {
+    const db = getDb();
+    const ModelDefinition = db.ModelDefinition;
+    
     const { name } = req.params;
     const { className, fields, associations, options } = req.body;
 
@@ -838,6 +850,9 @@ function generateModelFile(name, className, fields, associations, options, modul
 // Gerar migration
 async function generateMigration(req, res) {
   try {
+    const db = getDb();
+    const ModelDefinition = db.ModelDefinition;
+    
     // O name vem do parâmetro da URL (req.params.name), não do body
     const name = req.params.name;
     const { fields, isNew, className, options, associations, module: moduleFromBody } = req.body;
@@ -900,7 +915,7 @@ async function generateMigration(req, res) {
     // Determinar caminho baseado no módulo
     let migrationsPath;
     if (module) {
-      const { loadModules } = require('../../../utils/moduleLoader');
+      const { loadModules } = require('../utils/moduleLoader');
       const modules = loadModules();
       const moduleExists = modules.find(m => m.name === module && m.enabled);
 
@@ -1231,7 +1246,7 @@ async function generateSeeder(req, res) {
     // Determinar caminho baseado no módulo
     let seedersPath;
     if (module) {
-      const { loadModules } = require('../../../utils/moduleLoader');
+      const { loadModules } = require('../utils/moduleLoader');
       const modules = loadModules();
       const moduleExists = modules.find(m => m.name === module && m.enabled);
 
@@ -1397,7 +1412,7 @@ async function deleteModel(req, res) {
         // Determinar caminho de migrations baseado no módulo
         let migrationsPath;
         if (module) {
-          const { loadModules } = require('../../../utils/moduleLoader');
+          const { loadModules } = require('../utils/moduleLoader');
           const modules = loadModules();
           const moduleExists = modules.find(m => m.name === module && m.enabled);
 
@@ -1458,7 +1473,7 @@ async function deleteModel(req, res) {
 // Obter todas as models com associações para gerar diagrama Mermaid (apenas models do usuário)
 async function getModelsForMermaid(req, res) {
   try {
-    const { loadModules } = require('../../../utils/moduleLoader');
+    const { loadModules } = require('../utils/moduleLoader');
     const modules = loadModules();
     const modelsData = [];
 

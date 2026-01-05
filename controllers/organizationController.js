@@ -1,11 +1,18 @@
-const db = require(pathResolver.resolveModelsPath());
 const pathResolver = require('../utils/pathResolver');
-const Organization = db.Organization;
-const User = db.User;
+
 const { Op } = require('sequelize');
+
+// Lazy load db para evitar problemas de ordem de carregamento
+function getDb() {
+  return require(pathResolver.resolveModelsPath());
+}
 
 exports.getAllOrganizations = async (req, res) => {
   try {
+    const db = getDb();
+    const Organization = db.Organization;
+    const User = db.User;
+    
     const filter = req.query.filter || '';
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 30;
@@ -57,6 +64,10 @@ exports.getAllOrganizations = async (req, res) => {
 
 exports.getOrganizationById = async (req, res) => {
   try {
+    const db = getDb();
+    const Organization = db.Organization;
+    const User = db.User;
+    
     const organization = await Organization.findByPk(req.params.id, {
       include: [
         { 
@@ -80,6 +91,10 @@ exports.getOrganizationById = async (req, res) => {
 
 exports.createOrganization = async (req, res) => {
   try {
+    const db = getDb();
+    const Organization = db.Organization;
+    const User = db.User;
+    
     const { name, userIds } = req.body;
     const organization = await Organization.create({ name });
     
@@ -108,6 +123,10 @@ exports.createOrganization = async (req, res) => {
 
 exports.updateOrganization = async (req, res) => {
   try {
+    const db = getDb();
+    const Organization = db.Organization;
+    const User = db.User;
+    
     const { name, userIds } = req.body;
     const organization = await Organization.findByPk(req.params.id);
     if (!organization) {
@@ -143,6 +162,9 @@ exports.updateOrganization = async (req, res) => {
 
 exports.deleteOrganization = async (req, res) => {
   try {
+    const db = getDb();
+    const Organization = db.Organization;
+    
     const organization = await Organization.findByPk(req.params.id);
     if (!organization) {
       return res.status(404).json({ message: 'Organization not found' });
@@ -156,6 +178,10 @@ exports.deleteOrganization = async (req, res) => {
 
 exports.updateOrganizationUsers = async (req, res) => {
   try {
+    const db = getDb();
+    const Organization = db.Organization;
+    const User = db.User;
+    
     const { userIds } = req.body;
     const organization = await Organization.findByPk(req.params.id);
     if (!organization) {

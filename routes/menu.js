@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const menuController = require('../controllers/menuController');
 const menuItemController = require('../controllers/menuItemController');
-const authenticateToken = require('../../../middleware/authenticateToken');
+const authenticateToken = require('../middleware/authenticateToken');
 
 // Buscar menus do usuário para o sistema atual
 router.get('/user', authenticateToken, menuController.getUserMenus);

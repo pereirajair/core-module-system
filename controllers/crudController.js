@@ -1,11 +1,17 @@
 const pathResolver = require('../utils/pathResolver');
 const backendPath = pathResolver.getBackendPath();
-const db = require(pathResolver.resolveModelsPath());
-const Crud = db.Crud;
 const { Op } = require(backendPath + '/node_modules/sequelize');
+
+// Lazy load db para evitar problemas de ordem de carregamento
+function getDb() {
+  return require(pathResolver.resolveModelsPath());
+}
 
 exports.getAllCruds = async (req, res) => {
   try {
+    const db = getDb();
+    const Crud = db.Crud;
+    
     const filter = req.query.filter || '';
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 30;
@@ -61,6 +67,9 @@ exports.getAllCruds = async (req, res) => {
 
 exports.getCrudById = async (req, res) => {
   try {
+    const db = getDb();
+    const Crud = db.Crud;
+    
     const crud = await Crud.findByPk(req.params.id);
     if (!crud) {
       return res.status(404).json({ message: 'CRUD não encontrado' });
@@ -76,6 +85,9 @@ exports.getCrudById = async (req, res) => {
 
 exports.getCrudByName = async (req, res) => {
   try {
+    const db = getDb();
+    const Crud = db.Crud;
+    
     const crud = await Crud.findOne({
       where: { name: req.params.name, active: true }
     });
@@ -93,6 +105,9 @@ exports.getCrudByName = async (req, res) => {
 
 exports.createCrud = async (req, res) => {
   try {
+    const db = getDb();
+    const Crud = db.Crud;
+    
     const { name, title, icon, resource, endpoint, config, active, isSystem } = req.body;
 
     // Validar se o config é um objeto válido
@@ -126,6 +141,9 @@ exports.createCrud = async (req, res) => {
 
 exports.updateCrud = async (req, res) => {
   try {
+    const db = getDb();
+    const Crud = db.Crud;
+    
     const { name, title, icon, resource, endpoint, config, active } = req.body;
 
     const crud = await Crud.findByPk(req.params.id);
@@ -164,6 +182,9 @@ exports.updateCrud = async (req, res) => {
 
 exports.deleteCrud = async (req, res) => {
   try {
+    const db = getDb();
+    const Crud = db.Crud;
+    
     const crud = await Crud.findByPk(req.params.id);
     if (!crud) {
       return res.status(404).json({ message: 'CRUD não encontrado' });

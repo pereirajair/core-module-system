@@ -182,7 +182,7 @@ async function runMigrations() {
     }
 
     await sequelize.close();
-    process.exit(0);
+    // process.exit(0);
   } catch (error) {
     console.error('❌ Erro ao executar migrations:', error);
     await sequelize.close();

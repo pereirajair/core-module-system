@@ -1,10 +1,18 @@
-const db = require(pathResolver.resolveModelsPath());
 const pathResolver = require('../utils/pathResolver');
-const Function = db.Function;
+
 const { Op } = require('sequelize');
+
+// Lazy load db para evitar problemas de ordem de carregamento
+function getDb() {
+  return require(pathResolver.resolveModelsPath());
+}
 
 exports.getAllFunctions = async (req, res) => {
   try {
+    const db = getDb();
+    const Function = db.Function;
+    const Role = db.Role;
+    
     const filter = req.query.filter || '';
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 30;
@@ -59,6 +67,9 @@ exports.getAllFunctions = async (req, res) => {
 
 exports.getFunctionById = async (req, res) => {
   try {
+    const db = getDb();
+    const Function = db.Function;
+    
     const func = await Function.findByPk(req.params.id);
     if (!func) {
       return res.status(404).json({ message: 'Function not found' });
@@ -71,6 +82,9 @@ exports.getFunctionById = async (req, res) => {
 
 exports.createFunction = async (req, res) => {
   try {
+    const db = getDb();
+    const Function = db.Function;
+    
     const { name, title } = req.body;
     const func = await Function.create({ name, title });
     res.status(201).json(func);
@@ -81,6 +95,9 @@ exports.createFunction = async (req, res) => {
 
 exports.updateFunction = async (req, res) => {
   try {
+    const db = getDb();
+    const Function = db.Function;
+    
     const { name, title } = req.body;
     const func = await Function.findByPk(req.params.id);
     if (!func) {
@@ -97,6 +114,9 @@ exports.updateFunction = async (req, res) => {
 
 exports.deleteFunction = async (req, res) => {
   try {
+    const db = getDb();
+    const Function = db.Function;
+    
     const func = await Function.findByPk(req.params.id);
     if (!func) {
       return res.status(404).json({ message: 'Function not found' });

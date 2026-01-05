@@ -1,7 +1,11 @@
-const db = require(pathResolver.resolveModelsPath()); const { Menu, MenuItems, Role, User, Organization } = db;
 const pathResolver = require('../utils/pathResolver');
 const { Op } = require('sequelize');
-const { updateHasManyAssociations } = require('../../../utils/associationUtils');
+const { updateHasManyAssociations } = require('../utils/associationUtils');
+
+// Lazy load db para evitar problemas de ordem de carregamento
+function getDb() {
+  return require(pathResolver.resolveModelsPath());
+}
 
 /**
  * Buscar menus e menu items do usuário para o sistema atual
@@ -12,6 +16,13 @@ const { updateHasManyAssociations } = require('../../../utils/associationUtils')
  */
 async function getUserMenus(req, res) {
   try {
+    const db = getDb();
+    const Menu = db.Menu;
+    const MenuItems = db.MenuItems;
+    const Role = db.Role;
+    const User = db.User;
+    const Organization = db.Organization;
+    
     const userId = req.user.id;
 
     // Buscar usuário com suas roles e organizações
@@ -126,6 +137,12 @@ async function getUserMenus(req, res) {
 // CRUD completo para Menus
 async function getAllMenus(req, res) {
   try {
+    const db = getDb();
+    const Menu = db.Menu;
+    const MenuItems = db.MenuItems;
+    const System = db.System;
+    const Organization = db.Organization;
+    
     const filter = req.query.filter || '';
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 30;
@@ -153,7 +170,6 @@ async function getAllMenus(req, res) {
       }
     }
     
-    const { System, Organization } = require(pathResolver.resolveModelsPath());
     const { count, rows } = await Menu.findAndCountAll({
       where,
       include: [
@@ -186,7 +202,12 @@ async function getAllMenus(req, res) {
 
 async function getMenuById(req, res) {
   try {
-    const { System, Organization } = require(pathResolver.resolveModelsPath());
+    const db = getDb();
+    const Menu = db.Menu;
+    const MenuItems = db.MenuItems;
+    const System = db.System;
+    const Organization = db.Organization;
+    
     const menu = await Menu.findByPk(req.params.id, {
       include: [
         {
@@ -212,6 +233,10 @@ async function getMenuById(req, res) {
 // Função auxiliar updateHasManyAssociations importada de utils
 
 async function createMenu(req, res) {
+  const db = getDb();
+  const Menu = db.Menu;
+  const MenuItems = db.MenuItems;
+  
   const transaction = await db.sequelize.transaction();
   try {
     const { name, id_system, id_organization, ...otherData } = req.body;
@@ -242,6 +267,10 @@ async function createMenu(req, res) {
 }
 
 async function updateMenu(req, res) {
+  const db = getDb();
+  const Menu = db.Menu;
+  const MenuItems = db.MenuItems;
+  
   const transaction = await db.sequelize.transaction();
   try {
     const { name, id_system, id_organization } = req.body;
@@ -278,6 +307,9 @@ async function updateMenu(req, res) {
 
 async function deleteMenu(req, res) {
   try {
+    const db = getDb();
+    const Menu = db.Menu;
+    
     const menu = await Menu.findByPk(req.params.id);
     if (!menu) {
       return res.status(404).json({ message: 'Menu não encontrado' });
