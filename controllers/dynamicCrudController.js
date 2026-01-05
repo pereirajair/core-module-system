@@ -1,5 +1,6 @@
 // Importar db dinamicamente para garantir que sempre tenha os modelos mais recentes
-let db = require('../../../models');
+const pathResolver = require('../utils/pathResolver');
+let db = require(pathResolver.resolveModelsPath());
 const { Op } = require('sequelize');
 const { updateHasManyAssociations } = require('../../../utils/associationUtils');
 
@@ -11,7 +12,7 @@ function reloadDb() {
     delete require.cache[modelsIndexPath];
   }
   // Recarregar db
-  db = require('../../../models');
+  db = require(pathResolver.resolveModelsPath());
 }
 
 // Controller genérico para CRUDs dinâmicos

@@ -1,4 +1,5 @@
-const db = require('../../../models');
+const db = require(pathResolver.resolveModelsPath());
+const pathResolver = require('../utils/pathResolver');
 const User = db.User;
 const Role = db.Role;
 const Organization = db.Organization;

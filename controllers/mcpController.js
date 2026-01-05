@@ -1,4 +1,5 @@
-const db = require('../../../models');
+const db = require(pathResolver.resolveModelsPath());
+const pathResolver = require('../utils/pathResolver');
 const { Crud, Function, Menu, MenuItems, Role, System, ModelDefinition } = db;
 const modelController = require('./modelController');
 const dynamicReload = require('../../../utils/dynamicReload');

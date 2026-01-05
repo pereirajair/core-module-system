@@ -1,4 +1,5 @@
-const db = require('../../../models');
+const db = require(pathResolver.resolveModelsPath());
+const pathResolver = require('../utils/pathResolver');
 const Crud = db.Crud;
 const { Op } = require('sequelize');
 

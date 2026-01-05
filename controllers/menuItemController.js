@@ -1,4 +1,5 @@
-const db = require('../../../models'); const { MenuItems, Menu, System, Organization, Role } = db;
+const db = require(pathResolver.resolveModelsPath()); const { MenuItems, Menu, System, Organization, Role } = db;
+const pathResolver = require('../utils/pathResolver');
 
 async function getAllMenuItems(req, res) {
   try {

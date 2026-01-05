@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
+const pathResolver = require('../utils/pathResolver');
 const jwt = require('jsonwebtoken');
-const db = require('../../../models');
+const db = require(pathResolver.resolveModelsPath());
 const User = db.User;
 const md5 = require('md5');
 

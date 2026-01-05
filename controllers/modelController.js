@@ -1,7 +1,8 @@
 const fs = require('fs');
+const pathResolver = require('../utils/pathResolver');
 const path = require('path');
 const { execSync } = require('child_process');
-const db = require('../../../models');
+const db = require(pathResolver.resolveModelsPath());
 const { ModelDefinition } = db;
 
 const modelsPath = path.join(__dirname, '../../../models');

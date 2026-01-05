@@ -1,4 +1,5 @@
-const db = require('../../../models'); const { Menu, MenuItems, Role, User, Organization } = db;
+const db = require(pathResolver.resolveModelsPath()); const { Menu, MenuItems, Role, User, Organization } = db;
+const pathResolver = require('../utils/pathResolver');
 const { Op } = require('sequelize');
 const { updateHasManyAssociations } = require('../../../utils/associationUtils');
 
@@ -152,7 +153,7 @@ async function getAllMenus(req, res) {
       }
     }
     
-    const { System, Organization } = require('../../../models');
+    const { System, Organization } = require(pathResolver.resolveModelsPath());
     const { count, rows } = await Menu.findAndCountAll({
       where,
       include: [
@@ -185,7 +186,7 @@ async function getAllMenus(req, res) {
 
 async function getMenuById(req, res) {
   try {
-    const { System, Organization } = require('../../../models');
+    const { System, Organization } = require(pathResolver.resolveModelsPath());
     const menu = await Menu.findByPk(req.params.id, {
       include: [
         {

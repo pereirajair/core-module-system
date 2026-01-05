@@ -1,8 +1,9 @@
 const fs = require('fs');
+const pathResolver = require('../utils/pathResolver');
 const path = require('path');
 const https = require('https');
 const http = require('http');
-const db = require('../../../models');
+const db = require(pathResolver.resolveModelsPath());
 const { Crud, Function, Menu, MenuItems, Role, System, ModelDefinition } = db;
 const modelController = require('./modelController');
 const dynamicReload = require('../../../utils/dynamicReload');
@@ -57,7 +58,7 @@ async function createSeederInternal(params) {
     try {
       // Buscar informações da model para validar tableName e campos
       const modelController = require('./modelController');
-      const db = require('../../../models');
+      const db = require(pathResolver.resolveModelsPath());
       const { ModelDefinition } = db;
       const normalizedName = modelController.normalizeModelName(name);
       let modelInfo = null;
