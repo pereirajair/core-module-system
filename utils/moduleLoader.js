@@ -88,7 +88,7 @@ function loadModules() {
   
   if (gestorModulesPath && fs.existsSync(gestorModulesPath)) {
     const npmModuleDirs = fs.readdirSync(gestorModulesPath, { withFileTypes: true })
-      .filter(dirent => dirent.isDirectory())
+      .filter(dirent => dirent.isDirectory() || dirent.isSymbolicLink())
       .map(dirent => dirent.name);
     
     for (const moduleName of npmModuleDirs) {

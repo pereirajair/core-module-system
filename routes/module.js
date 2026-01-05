@@ -10,11 +10,18 @@ router.use(authenticateToken);
 // Listar todos os módulos
 router.get('/', authorizeFunctions('adm.visualizar_modules'), moduleController.getAllModules);
 
-// Obter um módulo específico
-router.get('/:name', authorizeFunctions('adm.visualizar_modules'), moduleController.getModule);
-
 // Criar novo módulo
 router.post('/', authorizeFunctions('adm.criar_modules'), moduleController.createModule);
+
+// ⚠️ IMPORTANTE: Rotas específicas DEVEM vir ANTES de rotas parametrizadas
+// Instalar módulo via npm
+router.post('/npm/install', authorizeFunctions('adm.criar_modules'), moduleController.installModuleFromNpm);
+
+// Desinstalar módulo via npm
+router.post('/npm/uninstall', authorizeFunctions('adm.manter_modules'), moduleController.uninstallModuleFromNpm);
+
+// Obter um módulo específico
+router.get('/:name', authorizeFunctions('adm.visualizar_modules'), moduleController.getModule);
 
 // Atualizar módulo
 router.put('/:name', authorizeFunctions('adm.manter_modules'), moduleController.updateModule);

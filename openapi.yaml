@@ -1807,9 +1807,119 @@ paths:
                     type: string
                   path:
                     type: string
+  /api/modules/npm/install:
+    post:
+      summary: Instalar módulo via npm
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - packageName
+              properties:
+                packageName:
+                  type: string
+                  description: Nome do pacote npm ou URL do repositório
+                  example: '@gestor/meu-modulo'
+            examples:
+              npmPackage:
+                summary: Pacote npm
+                value:
+                  packageName: '@gestor/locations'
+              gitUrl:
+                summary: Repositório Git
+                value:
+                  packageName: 'https://github.com/user/gestor-module.git'
+      responses:
+        '200':
+          description: Módulo instalado com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  packageName:
+                    type: string
+                  output:
+                    type: string
+                  module:
+                    type: object
+                    nullable: true
+                  nextSteps:
+                    type: array
+                    items:
+                      type: string
+        '400':
+          description: Dados inválidos
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          description: Erro ao instalar módulo
+  /api/modules/npm/uninstall:
+    post:
+      summary: Desinstalar módulo via npm
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - packageName
+              properties:
+                packageName:
+                  type: string
+                  description: Nome do pacote npm
+                  example: '@gestor/meu-modulo'
+      responses:
+        '200':
+          description: Módulo desinstalado com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  packageName:
+                    type: string
+                  output:
+                    type: string
+        '400':
+          description: Dados inválidos
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          description: Erro ao desinstalar módulo
 
 components:
   responses:
+    Unauthorized:
+      description: Não autorizado - Token inválido ou ausente
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                example: 'Não autorizado'
     Forbidden:
       description: Acesso Negado
       content:

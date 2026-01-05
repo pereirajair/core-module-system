@@ -480,6 +480,193 @@ async function uninstallModule(req, res) {
   }
 }
 
+// Função auxiliar para habilitar um módulo
+function enableModuleInConfig(modulePath) {
+  const packageJsonPath = path.join(modulePath, 'package.json');
+  const moduleJsonPath = path.join(modulePath, 'module.json');
+  
+  // Tentar atualizar no module.json primeiro
+  if (fs.existsSync(moduleJsonPath)) {
+    try {
+      const moduleJson = JSON.parse(fs.readFileSync(moduleJsonPath, 'utf8'));
+      moduleJson.enabled = true;
+      fs.writeFileSync(moduleJsonPath, JSON.stringify(moduleJson, null, 2), 'utf8');
+      console.log(`✅ Módulo habilitado em module.json`);
+      return true;
+    } catch (error) {
+      console.error(`Erro ao atualizar module.json:`, error.message);
+    }
+  }
+  
+  // Se não tiver module.json, tentar atualizar no package.json
+  if (fs.existsSync(packageJsonPath)) {
+    try {
+      const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+      if (packageJson.gestor) {
+        packageJson.gestor.enabled = true;
+        fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2), 'utf8');
+        console.log(`✅ Módulo habilitado em package.json`);
+        return true;
+      }
+    } catch (error) {
+      console.error(`Erro ao atualizar package.json:`, error.message);
+    }
+  }
+  
+  return false;
+}
+
+// Instalar módulo via npm
+async function installModuleFromNpm(req, res) {
+  try {
+    const { packageName } = req.body;
+    
+    if (!packageName || typeof packageName !== 'string') {
+      return res.status(400).json({ 
+        message: 'Nome do pacote é obrigatório',
+        example: '@gestor/meu-modulo, https://github.com/user/repo.git ou file:../meu-modulo'
+      });
+    }
+
+    // Validar formato do pacote
+    const isUrl = packageName.startsWith('http://') || packageName.startsWith('https://') || packageName.startsWith('git+');
+    const isFile = packageName.startsWith('file:');
+    const isNpmPackage = /^(@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*(@.+)?$/i.test(packageName);
+    
+    if (!isUrl && !isFile && !isNpmPackage) {
+      return res.status(400).json({ 
+        message: 'Formato de pacote inválido',
+        example: '@gestor/meu-modulo, https://github.com/user/repo.git ou file:../meu-modulo'
+      });
+    }
+
+    console.log(`📦 Instalando módulo: ${packageName}`);
+
+    const { execSync } = require('child_process');
+    const backendPath = path.join(__dirname, '../../../backend');
+    
+    // Executar npm install no diretório backend
+    const command = `npm install ${packageName} --save`;
+    
+    console.log(`🔄 Executando: ${command}`);
+    console.log(`📂 Diretório: ${backendPath}`);
+    
+    const output = execSync(command, {
+      cwd: backendPath,
+      encoding: 'utf8',
+      stdio: 'pipe'
+    });
+
+    console.log(`✅ Módulo instalado com sucesso`);
+    console.log(`📋 Output:\n${output}`);
+
+    // Tentar habilitar o módulo automaticamente
+    // Procurar o módulo instalado no node_modules/@gestor
+    const gestorNodeModulesPath = path.join(backendPath, 'node_modules', '@gestor');
+    if (fs.existsSync(gestorNodeModulesPath)) {
+      const moduleDirs = fs.readdirSync(gestorNodeModulesPath);
+      for (const moduleName of moduleDirs) {
+        const modulePath = path.join(gestorNodeModulesPath, moduleName);
+        // Verificar se o módulo recém-instalado corresponde ao packageName
+        if (packageName.includes(moduleName) || packageName.includes(`@gestor/${moduleName}`)) {
+          console.log(`🔄 Tentando habilitar módulo ${moduleName}...`);
+          enableModuleInConfig(modulePath);
+          break;
+        }
+      }
+    }
+
+    // Recarregar módulos para detectar o novo módulo
+    const modules = loadModules();
+    const installedModule = modules.find(m => 
+      packageName.includes(m.name) || 
+      packageName.includes(`@gestor/${m.name}`)
+    );
+
+    res.json({
+      success: true,
+      message: 'Módulo instalado com sucesso via npm',
+      packageName,
+      output: output.trim(),
+      module: installedModule || null,
+      enabled: installedModule ? installedModule.enabled : false,
+      nextSteps: [
+        'Execute migrations: npm run db:migrate',
+        'Execute seeders: npm run db:seed',
+        installedModule && !installedModule.enabled ? `Ative o módulo em: /api/modules/${installedModule.name}/install` : null
+      ].filter(Boolean)
+    });
+
+  } catch (error) {
+    console.error('❌ Erro ao instalar módulo via npm:', error);
+    
+    // Extrair mensagem de erro mais limpa
+    let errorMessage = error.message;
+    if (error.stdout) errorMessage += `\n${error.stdout}`;
+    if (error.stderr) errorMessage += `\n${error.stderr}`;
+    
+    res.status(500).json({ 
+      success: false,
+      message: 'Erro ao instalar módulo via npm', 
+      error: errorMessage,
+      packageName: req.body.packageName
+    });
+  }
+}
+
+// Desinstalar módulo via npm
+async function uninstallModuleFromNpm(req, res) {
+  try {
+    const { packageName } = req.body;
+    
+    if (!packageName || typeof packageName !== 'string') {
+      return res.status(400).json({ 
+        message: 'Nome do pacote é obrigatório'
+      });
+    }
+
+    console.log(`🗑️  Desinstalando módulo: ${packageName}`);
+
+    const { execSync } = require('child_process');
+    const backendPath = path.join(__dirname, '../../../backend');
+    
+    // Executar npm uninstall no diretório backend
+    const command = `npm uninstall ${packageName}`;
+    
+    console.log(`🔄 Executando: ${command}`);
+    console.log(`📂 Diretório: ${backendPath}`);
+    
+    const output = execSync(command, {
+      cwd: backendPath,
+      encoding: 'utf8',
+      stdio: 'pipe'
+    });
+
+    console.log(`✅ Módulo desinstalado com sucesso`);
+
+    res.json({
+      success: true,
+      message: 'Módulo desinstalado com sucesso via npm',
+      packageName,
+      output: output.trim()
+    });
+
+  } catch (error) {
+    console.error('❌ Erro ao desinstalar módulo via npm:', error);
+    
+    let errorMessage = error.message;
+    if (error.stdout) errorMessage += `\n${error.stdout}`;
+    if (error.stderr) errorMessage += `\n${error.stderr}`;
+    
+    res.status(500).json({ 
+      success: false,
+      message: 'Erro ao desinstalar módulo via npm', 
+      error: errorMessage,
+      packageName: req.body.packageName
+    });
+  }
+}
+
 module.exports = {
   getAllModules,
   getModule,
@@ -489,6 +676,8 @@ module.exports = {
   deleteModule,
   installModule,
   uninstallModule,
+  installModuleFromNpm,
+  uninstallModuleFromNpm,
   checkDependencies
 };
 
