@@ -1,0 +1,10 @@
+{
+  "name": "system",
+  "title": "Sistema",
+  "description": "Módulo de sistema com funcionalidades core",
+  "version": "1.0.0",
+  "enabled": true,
+  "isSystem": true,
+  "dependencies": []
+}
+

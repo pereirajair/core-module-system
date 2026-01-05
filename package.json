@@ -1,0 +1,32 @@
+{
+  "name": "@gestor/system",
+  "version": "1.0.0",
+  "description": "Módulo de sistema com funcionalidades core",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "gestor",
+    "system",
+    "module",
+    "core"
+  ],
+  "author": "",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pereirajair/core-module-system.git"
+  },
+  "gestor": {
+    "module": true,
+    "name": "system",
+    "title": "Sistema",
+    "description": "Módulo de sistema com funcionalidades core",
+    "version": "1.0.0",
+    "enabled": true,
+    "dependencies": [],
+    "isSystem": true
+  }
+}
+
