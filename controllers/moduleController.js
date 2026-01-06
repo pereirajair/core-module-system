@@ -378,12 +378,51 @@ async function installModuleInternal(moduleName) {
     throw new Error(`Módulo ${moduleName} não encontrado`);
   }
   
-  // Habilitar módulo primeiro
-  const modulePath = path.join(modulesPath, moduleName);
-  const moduleJsonPath = path.join(modulePath, 'module.json');
-  const currentConfig = JSON.parse(fs.readFileSync(moduleJsonPath, 'utf8'));
-  currentConfig.enabled = true;
-  fs.writeFileSync(moduleJsonPath, JSON.stringify(currentConfig, null, 2), 'utf8');
+  // Habilitar módulo (suporta módulos locais e npm/@gestor)
+  const backendPath = path.join(__dirname, '../../../backend');
+
+  const possibleModuleBases = [
+    path.join(modulesPath, moduleName),                                // módulos locais: modules/<name>
+    path.join(backendPath, 'node_modules', '@gestor', moduleName),     // npm: backend/node_modules/@gestor/<name>
+    path.join(__dirname, '../../../../node_modules/@gestor', moduleName) // npm quando system está em node_modules
+  ];
+
+  let moduleConfigPath = null;
+  let resolvedModulePath = null;
+
+  for (const basePath of possibleModuleBases) {
+    const moduleJsonPath = path.join(basePath, 'module.json');
+    const packageJsonPath = path.join(basePath, 'package.json');
+
+    if (fs.existsSync(moduleJsonPath)) {
+      moduleConfigPath = moduleJsonPath;
+      resolvedModulePath = basePath;
+      break;
+    }
+
+    if (fs.existsSync(packageJsonPath)) {
+      moduleConfigPath = packageJsonPath;
+      resolvedModulePath = basePath;
+      break;
+    }
+  }
+
+  if (!moduleConfigPath) {
+    throw new Error(`Configuração do módulo "${moduleName}" não encontrada para instalar.`);
+  }
+
+  const currentConfig = JSON.parse(fs.readFileSync(moduleConfigPath, 'utf8'));
+
+  if (moduleConfigPath.endsWith('package.json')) {
+    if (!currentConfig.gestor) {
+      currentConfig.gestor = {};
+    }
+    currentConfig.gestor.enabled = true;
+  } else {
+    currentConfig.enabled = true;
+  }
+
+  fs.writeFileSync(moduleConfigPath, JSON.stringify(currentConfig, null, 2), 'utf8');
   
   // Encontrar e executar seeder de instalação
   const installSeederPath = findInstallSeeder(moduleName);
@@ -409,7 +448,7 @@ async function installModuleInternal(moduleName) {
   return {
     module: {
       ...currentConfig,
-      path: modulePath
+      path: resolvedModulePath || path.join(modulesPath, moduleName)
     }
   };
 }
@@ -460,18 +499,57 @@ async function uninstallModule(req, res) {
       }
     }
     
-    // Desabilitar módulo
-    const modulePath = path.join(modulesPath, name);
-    const moduleJsonPath = path.join(modulePath, 'module.json');
-    const currentConfig = JSON.parse(fs.readFileSync(moduleJsonPath, 'utf8'));
-    currentConfig.enabled = false;
-    fs.writeFileSync(moduleJsonPath, JSON.stringify(currentConfig, null, 2), 'utf8');
-    
+    // Desabilitar módulo (tanto para módulos locais quanto npm/@gestor)
+    const backendPath = path.join(__dirname, '../../../backend');
+
+    const possibleModuleBases = [
+      path.join(modulesPath, name),                                // módulos locais: modules/<name>
+      path.join(backendPath, 'node_modules', '@gestor', name),     // npm: backend/node_modules/@gestor/<name>
+      path.join(__dirname, '../../../../node_modules/@gestor', name) // npm quando system está em node_modules
+    ];
+
+    let moduleConfigPath = null;
+    let resolvedModulePath = null;
+
+    for (const basePath of possibleModuleBases) {
+      const moduleJsonPath = path.join(basePath, 'module.json');
+      const packageJsonPath = path.join(basePath, 'package.json');
+
+      if (fs.existsSync(moduleJsonPath)) {
+        moduleConfigPath = moduleJsonPath;
+        resolvedModulePath = basePath;
+        break;
+      }
+
+      if (fs.existsSync(packageJsonPath)) {
+        moduleConfigPath = packageJsonPath;
+        resolvedModulePath = basePath;
+        break;
+      }
+    }
+
+    if (!moduleConfigPath) {
+      throw new Error(`Configuração do módulo "${name}" não encontrada para desinstalar.`);
+    }
+
+    const currentConfig = JSON.parse(fs.readFileSync(moduleConfigPath, 'utf8'));
+
+    if (moduleConfigPath.endsWith('package.json')) {
+      if (!currentConfig.gestor) {
+        currentConfig.gestor = {};
+      }
+      currentConfig.gestor.enabled = false;
+    } else {
+      currentConfig.enabled = false;
+    }
+
+    fs.writeFileSync(moduleConfigPath, JSON.stringify(currentConfig, null, 2), 'utf8');
+
     res.json({
       message: 'Módulo desinstalado com sucesso',
       module: {
         ...currentConfig,
-        path: modulePath
+        path: resolvedModulePath || path.join(modulesPath, name)
       }
     });
   } catch (error) {
