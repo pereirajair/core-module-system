@@ -37,7 +37,8 @@ module.exports.routes = {
   model: require('./routes/model'),
   chatIA: require('./routes/chatIA'),
   mcp: require('./routes/mcp'),
-  module: require('./routes/module')
+  module: require('./routes/module'),
+  cronJob: require('./routes/cronJob')
 };
 
 module.exports.utils = {

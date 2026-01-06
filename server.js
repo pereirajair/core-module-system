@@ -26,6 +26,7 @@ class GestorServer {
     this.app = null;
     this.db = null;
     this.systemModule = null;
+    this.cronManager = null;
   }
 
   /**
@@ -88,6 +89,9 @@ class GestorServer {
       
       // Configurar dynamic reload
       this._setupDynamicReload();
+
+      // Inicializar Cron Jobs a partir do banco
+      await this._setupCronManager();
       
       // Iniciar servidor
       await this._listen();
@@ -392,6 +396,7 @@ class GestorServer {
     this.app.use('/api/modules', routes.module);
     this.app.use('/api/chatia', routes.chatIA);
     this.app.use('/api/mcp', routes.mcp);
+    this.app.use('/api/cron-jobs', routes.cronJob);
   }
 
   /**
@@ -485,6 +490,22 @@ class GestorServer {
   }
 
   /**
+   * Inicializa gerenciador de Cron Jobs
+   */
+  async _setupCronManager() {
+    try {
+      console.log('⏰ Inicializando gerenciador de Cron Jobs...');
+      this.cronManager = require('./utils/cronManager');
+      await this.cronManager.initialize(this.db);
+      console.log('✅ Gerenciador de Cron Jobs inicializado com sucesso!');
+    } catch (error) {
+      console.error('❌ Erro ao inicializar Cron Manager:', error);
+      // Não interrompe o servidor, apenas registra o erro
+      this.cronManager = null;
+    }
+  }
+
+  /**
    * Configura error handler
    */
   _setupErrorHandler() {
@@ -524,9 +545,21 @@ class GestorServer {
    * Para o servidor
    */
   async stop() {
+    // Limpar cron jobs
+    if (this.cronManager) {
+      try {
+        this.cronManager.clearAllJobs();
+        console.log('✅ Cron Jobs limpos');
+      } catch (error) {
+        console.error('❌ Erro ao limpar Cron Jobs:', error);
+      }
+    }
+    
+    // Fechar conexão com banco
     if (this.db) {
       await this.db.sequelize.close();
     }
+    
     console.log('✅ Gestor Server parado com sucesso!');
   }
 }
