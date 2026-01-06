@@ -8,6 +8,35 @@ function getDb() {
   return modelsLoader.loadModels();
 }
 
+// Lazy load GestorSys
+function getGestorSys() {
+  return require('./gestorSys');
+}
+
+/**
+ * Extrai o nome do módulo do caminho do controller
+ * @param {string} controllerPath - Caminho do controller (ex: '@gestor/system/controllers/cronController')
+ * @returns {string} Nome do módulo (ex: 'system', 'pessoa')
+ */
+function extractModuleName(controllerPath) {
+  if (!controllerPath) return 'system';
+  
+  // Se começar com @gestor/, extrair o nome do módulo
+  const match = controllerPath.match(/@gestor\/([^\/]+)/);
+  if (match) {
+    return match[1];
+  }
+  
+  // Se contiver 'old/', tentar extrair o nome do módulo
+  const oldMatch = controllerPath.match(/old\/([^\/]+)/);
+  if (oldMatch) {
+    return oldMatch[1];
+  }
+  
+  // Fallback para 'system'
+  return 'system';
+}
+
 let started = false;
 let scheduledJobs = {};
 
@@ -131,10 +160,55 @@ function scheduleJob(db, jobInstance) {
 
         lastExecutionSuccess = true;
         lastExecutionLog = `Executado com sucesso em ${now.toISOString()}`;
+        
+        // Registrar log de sucesso
+        try {
+          const GestorSys = getGestorSys();
+          const moduleName = extractModuleName(freshJob.controller);
+          await GestorSys.logNormal(
+            moduleName,
+            `Cron job "${freshJob.name}" executado com sucesso`,
+            {
+              context: {
+                cronJobId: freshJob.id,
+                cronJobName: freshJob.name,
+                cronExpression: freshJob.cronExpression,
+                controller: freshJob.controller,
+                method: freshJob.method,
+                executionTime: now.toISOString()
+              }
+            }
+          );
+        } catch (logError) {
+          console.error(`⚠️  Erro ao registrar log de sucesso do cron job "${freshJob.name}":`, logError);
+        }
       } catch (error) {
         console.error(`❌ Erro ao executar CronJob "${freshJob.name}":`, error);
         lastExecutionSuccess = false;
         lastExecutionLog = `Erro em ${now.toISOString()}: ${error.message}`;
+        
+        // Registrar log de erro
+        try {
+          const GestorSys = getGestorSys();
+          const moduleName = extractModuleName(freshJob.controller);
+          await GestorSys.logError(
+            moduleName,
+            `Erro ao executar cron job "${freshJob.name}": ${error.message}`,
+            {
+              error: error,
+              context: {
+                cronJobId: freshJob.id,
+                cronJobName: freshJob.name,
+                cronExpression: freshJob.cronExpression,
+                controller: freshJob.controller,
+                method: freshJob.method,
+                executionTime: now.toISOString()
+              }
+            }
+          );
+        } catch (logError) {
+          console.error(`⚠️  Erro ao registrar log de erro do cron job "${freshJob.name}":`, logError);
+        }
       }
 
       try {

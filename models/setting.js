@@ -12,14 +12,16 @@ module.exports = (sequelize, DataTypes) => {
          */
         static associate(models) {
             // Associações opcionais - pelo menos uma deve estar presente
-            if (models.System) {
-                Setting.belongsTo(models.System, { foreignKey: 'id_system', as: 'System' });
+            // Verificar se as associações já existem antes de criar
+            // Não usar alias para evitar conflitos com associações inversas automáticas do Sequelize
+            if (models.System && !Setting.associations.System) {
+                Setting.belongsTo(models.System, { foreignKey: 'id_system' });
             }
-            if (models.User) {
-                Setting.belongsTo(models.User, { foreignKey: 'id_user', as: 'User' });
+            if (models.User && !Setting.associations.User) {
+                Setting.belongsTo(models.User, { foreignKey: 'id_user' });
             }
-            if (models.Organization) {
-                Setting.belongsTo(models.Organization, { foreignKey: 'id_organization', as: 'Organization' });
+            if (models.Organization && !Setting.associations.Organization) {
+                Setting.belongsTo(models.Organization, { foreignKey: 'id_organization' });
             }
         }
     }

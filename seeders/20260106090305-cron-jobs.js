@@ -74,7 +74,9 @@ module.exports = {
                             field: 'lastExecutionSuccess',
                             sortable: true,
                             style: 'min-width: 100px',
-                            format: 'badge'
+                            format: 'badge',
+                            badgeTrueLabel: 'OK',
+                            badgeFalseLabel: 'Erro'
                         },
                         {
                             name: 'actions',

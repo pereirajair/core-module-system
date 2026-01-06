@@ -35,6 +35,7 @@ const path = require('path');
  */
 function loadModules() {
   const modules = [];
+  const modulePaths = new Set(); // Usar Set para evitar duplicatas baseado no caminho real
   
   // Determinar caminho base: se estamos em node_modules/@gestor/system, usar caminho relativo ao projeto
   // Se estamos em backend/src/modules/system, usar caminho relativo ao backend
@@ -42,6 +43,25 @@ function loadModules() {
   const basePath = isNpmModule 
     ? path.join(__dirname, '../../../../backend/src') 
     : path.join(__dirname, '../../..');
+  
+  // Função auxiliar para resolver caminho real (resolver links simbólicos)
+  function resolveRealPath(modulePath) {
+    try {
+      return fs.realpathSync(modulePath);
+    } catch (error) {
+      return modulePath;
+    }
+  }
+  
+  // Função auxiliar para verificar se o módulo já foi adicionado
+  function isModuleAlreadyAdded(modulePath) {
+    const realPath = resolveRealPath(modulePath);
+    if (modulePaths.has(realPath)) {
+      return true;
+    }
+    modulePaths.add(realPath);
+    return false;
+  }
   
   // 1. Carregar módulos locais de backend/src/modules
   const modulesPath = path.join(basePath, 'modules');
@@ -56,6 +76,11 @@ function loadModules() {
       
       if (fs.existsSync(moduleJsonPath)) {
         try {
+          // Verificar se já foi adicionado (evitar duplicatas)
+          if (isModuleAlreadyAdded(modulePath)) {
+            continue;
+          }
+          
           const moduleInfo = JSON.parse(fs.readFileSync(moduleJsonPath, 'utf8'));
           moduleInfo.path = modulePath;
           moduleInfo.name = moduleName;
@@ -100,6 +125,11 @@ function loadModules() {
       const indexJsPath = path.join(modulePath, 'index.js');
       
       try {
+        // Verificar se já foi adicionado (evitar duplicatas)
+        if (isModuleAlreadyAdded(modulePath)) {
+          continue;
+        }
+        
         let moduleInfo = null;
         
         // Tentar carregar de module.json primeiro
@@ -155,6 +185,12 @@ function loadModuleModels(sequelize, DataTypes) {
   const db = {};
   const modules = loadModules();
   
+  // Garantir que sequelize tenha acesso ao Sequelize
+  if (!sequelize.Sequelize) {
+    const Sequelize = require('sequelize');
+    sequelize.Sequelize = Sequelize;
+  }
+  
   // Carregar models de cada módulo
   for (const module of modules) {
     if (!module.enabled) continue;
@@ -168,7 +204,13 @@ function loadModuleModels(sequelize, DataTypes) {
       for (const file of modelFiles) {
         try {
           const model = require(path.join(modelsPath, file))(sequelize, DataTypes);
-          db[model.name] = model;
+          // Usar model.name (que vem do modelName definido no init) ou o nome do arquivo como fallback
+          const modelName = model.name || model.constructor.name || file.replace('.js', '');
+          db[modelName] = model;
+          // Também registrar com o nome do arquivo (sem extensão) para compatibilidade
+          if (modelName !== file.replace('.js', '')) {
+            db[file.replace('.js', '')] = model;
+          }
         } catch (error) {
           console.error(`Erro ao carregar model ${file} do módulo ${module.name}:`, error.message);
         }

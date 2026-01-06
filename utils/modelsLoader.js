@@ -34,10 +34,39 @@ function loadModels() {
   const moduleModels = loadModuleModels(sequelize, Sequelize.DataTypes);
   Object.assign(db, moduleModels);
   
-  // Associar todos os models
+  // Limpar todas as associações existentes antes de associar (para evitar conflitos de cache)
   Object.keys(db).forEach(modelName => {
+    if (db[modelName].associations) {
+      const assocNames = Object.keys(db[modelName].associations);
+      assocNames.forEach(assocName => {
+        try {
+          delete db[modelName].associations[assocName];
+        } catch (e) {
+          // Ignorar erros ao deletar
+        }
+      });
+    }
+  });
+  
+  // Associar todos os models
+  // Ordenar para garantir que Menu seja associado antes de MenuItems
+  // (para evitar que belongsTo crie hasMany automático que conflite)
+  const modelNames = Object.keys(db);
+  const orderedModelNames = modelNames.sort((a, b) => {
+    // Menu deve vir antes de MenuItems
+    if (a === 'Menu' && b === 'MenuItems') return -1;
+    if (a === 'MenuItems' && b === 'Menu') return 1;
+    return 0;
+  });
+  
+  orderedModelNames.forEach(modelName => {
     if (db[modelName].associate) {
-      db[modelName].associate(db);
+      try {
+        db[modelName].associate(db);
+      } catch (error) {
+        console.error(`❌ Erro ao associar modelo ${modelName}:`, error.message);
+        throw error;
+      }
     }
   });
   

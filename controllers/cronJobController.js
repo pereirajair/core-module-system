@@ -8,6 +8,35 @@ function getDb() {
   return modelsLoader.loadModels();
 }
 
+// Lazy load GestorSys
+function getGestorSys() {
+  return require('../utils/gestorSys');
+}
+
+/**
+ * Extrai o nome do módulo do caminho do controller
+ * @param {string} controllerPath - Caminho do controller (ex: '@gestor/system/controllers/cronController')
+ * @returns {string} Nome do módulo (ex: 'system', 'pessoa')
+ */
+function extractModuleName(controllerPath) {
+  if (!controllerPath) return 'system';
+  
+  // Se começar com @gestor/, extrair o nome do módulo
+  const match = controllerPath.match(/@gestor\/([^\/]+)/);
+  if (match) {
+    return match[1];
+  }
+  
+  // Se contiver 'old/', tentar extrair o nome do módulo
+  const oldMatch = controllerPath.match(/old\/([^\/]+)/);
+  if (oldMatch) {
+    return oldMatch[1];
+  }
+  
+  // Fallback para 'system'
+  return 'system';
+}
+
 /**
  * Executar um cron job manualmente
  */
@@ -72,10 +101,59 @@ async function executeCronJob(req, res) {
       lastExecutionLog = `Executado manualmente com sucesso em ${now.toISOString()}`;
       
       console.log(`✅ Cron job "${cronJob.name}" executado com sucesso manualmente`);
+      
+      // Registrar log de sucesso
+      try {
+        const GestorSys = getGestorSys();
+        const moduleName = extractModuleName(cronJob.controller);
+        await GestorSys.logNormal(
+          moduleName,
+          `Cron job "${cronJob.name}" executado manualmente com sucesso`,
+          {
+            userId: req.user?.id,
+            context: {
+              cronJobId: cronJob.id,
+              cronJobName: cronJob.name,
+              cronExpression: cronJob.cronExpression,
+              controller: cronJob.controller,
+              method: cronJob.method,
+              executionTime: now.toISOString(),
+              manualExecution: true
+            }
+          }
+        );
+      } catch (logError) {
+        console.error(`⚠️  Erro ao registrar log de sucesso do cron job "${cronJob.name}":`, logError);
+      }
     } catch (error) {
       console.error(`❌ Erro ao executar cron job "${cronJob.name}" manualmente:`, error);
       lastExecutionSuccess = false;
       lastExecutionLog = `Erro na execução manual em ${now.toISOString()}: ${error.message}`;
+      
+      // Registrar log de erro
+      try {
+        const GestorSys = getGestorSys();
+        const moduleName = extractModuleName(cronJob.controller);
+        await GestorSys.logError(
+          moduleName,
+          `Erro ao executar cron job "${cronJob.name}" manualmente: ${error.message}`,
+          {
+            userId: req.user?.id,
+            error: error,
+            context: {
+              cronJobId: cronJob.id,
+              cronJobName: cronJob.name,
+              cronExpression: cronJob.cronExpression,
+              controller: cronJob.controller,
+              method: cronJob.method,
+              executionTime: now.toISOString(),
+              manualExecution: true
+            }
+          }
+        );
+      } catch (logError) {
+        console.error(`⚠️  Erro ao registrar log de erro do cron job "${cronJob.name}":`, logError);
+      }
       
       // Atualizar status mesmo em caso de erro
       await cronJob.update({

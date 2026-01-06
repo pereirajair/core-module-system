@@ -30,9 +30,22 @@ async function runSeeders() {
     // Carregar todos os seeders de todos os caminhos
     // Ordem: primeiro seeders padrão, depois módulos ordenados por dependências
     const allSeeders = [];
+    const seederPathsAdded = new Set(); // Usar Set para evitar duplicatas baseado no caminho real
+    
+    // Função auxiliar para resolver caminho real (resolver links simbólicos)
+    function resolveRealPath(filePath) {
+      try {
+        return fs.realpathSync(filePath);
+      } catch (error) {
+        return filePath;
+      }
+    }
     
     // Carregar seeders padrão primeiro
     if (fs.existsSync(defaultSeedersPath)) {
+      const realDefaultPath = resolveRealPath(defaultSeedersPath);
+      seederPathsAdded.add(realDefaultPath);
+      
       const files = fs.readdirSync(defaultSeedersPath)
         .filter(file => file.endsWith('.js'))
         .map(file => ({
@@ -50,6 +63,14 @@ async function runSeeders() {
         console.log(`⚠️  Caminho não encontrado: ${seedersPath}`);
         continue;
       }
+
+      // Verificar se o caminho real já foi adicionado (evitar duplicatas)
+      const realSeedersPath = resolveRealPath(seedersPath);
+      if (seederPathsAdded.has(realSeedersPath)) {
+        console.log(`⏭️  Caminho de seeders já foi carregado (duplicata ignorada): ${seedersPath}`);
+        continue;
+      }
+      seederPathsAdded.add(realSeedersPath);
 
       // Extrair nome do módulo do caminho
       // Suporta: .../modules/[nome-do-modulo]/seeders

@@ -140,7 +140,7 @@ module.exports = {
         icon: 'menu',
         route: '/crud/menus',
         target_blank: false,
-        id_menu: 2,
+        id_menu: 1,
         id_system: 1,
         id_organization: null,
         id_role: null,

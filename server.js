@@ -397,6 +397,7 @@ class GestorServer {
     this.app.use('/api/chatia', routes.chatIA);
     this.app.use('/api/mcp', routes.mcp);
     this.app.use('/api/cron-jobs', routes.cronJob);
+    this.app.use('/api/logs', routes.logs);
   }
 
   /**

@@ -30,9 +30,22 @@ async function runMigrations() {
     // Carregar todas as migrations de todos os caminhos
     // Ordem: primeiro migrations padrão, depois módulos ordenados por dependências
     const allMigrations = [];
+    const migrationPathsAdded = new Set(); // Usar Set para evitar duplicatas baseado no caminho real
+    
+    // Função auxiliar para resolver caminho real (resolver links simbólicos)
+    function resolveRealPath(filePath) {
+      try {
+        return fs.realpathSync(filePath);
+      } catch (error) {
+        return filePath;
+      }
+    }
     
     // Carregar migrations padrão primeiro
     if (fs.existsSync(defaultMigrationsPath)) {
+      const realDefaultPath = resolveRealPath(defaultMigrationsPath);
+      migrationPathsAdded.add(realDefaultPath);
+      
       const files = fs.readdirSync(defaultMigrationsPath)
         .filter(file => file.endsWith('.js'))
         .map(file => ({
@@ -50,6 +63,14 @@ async function runMigrations() {
         console.log(`⚠️  Caminho não encontrado: ${migrationsPath}`);
         continue;
       }
+
+      // Verificar se o caminho real já foi adicionado (evitar duplicatas)
+      const realMigrationsPath = resolveRealPath(migrationsPath);
+      if (migrationPathsAdded.has(realMigrationsPath)) {
+        console.log(`⏭️  Caminho de migrations já foi carregado (duplicata ignorada): ${migrationsPath}`);
+        continue;
+      }
+      migrationPathsAdded.add(realMigrationsPath);
 
       // Extrair nome do módulo do caminho
       // Suporta: .../modules/[nome-do-modulo]/migrations

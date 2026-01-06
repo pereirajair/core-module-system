@@ -38,7 +38,8 @@ module.exports.routes = {
   chatIA: require('./routes/chatIA'),
   mcp: require('./routes/mcp'),
   module: require('./routes/module'),
-  cronJob: require('./routes/cronJob')
+  cronJob: require('./routes/cronJob'),
+  logs: require('./routes/logs')
 };
 
 module.exports.utils = {

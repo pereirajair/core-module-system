@@ -11,10 +11,20 @@ module.exports = (sequelize, DataTypes) => {
      * The MenuItems `models/index` file will call this method automatically.
      */
     static associate(models) {
-      MenuItems.belongsTo(models.Organization, { foreignKey: 'id_organization' });
-      MenuItems.belongsTo(models.System, { foreignKey: 'id_system' });
-      MenuItems.belongsTo(models.Menu, { foreignKey: 'id_menu' });
-      MenuItems.belongsTo(models.Role, { foreignKey: 'id_role' });
+      // Verificar se as associações já existem antes de criar
+      if (!MenuItems.associations.Organization) {
+        MenuItems.belongsTo(models.Organization, { foreignKey: 'id_organization' });
+      }
+      if (!MenuItems.associations.System) {
+        MenuItems.belongsTo(models.System, { foreignKey: 'id_system' });
+      }
+      // NÃO criar belongsTo(Menu) explicitamente aqui
+      // O Menu já cria hasMany com alias 'MenuItems', e o Sequelize criará o belongsTo inverso automaticamente
+      // Criar explicitamente causaria conflito porque o Sequelize criaria um hasMany sem alias no Menu
+      // O belongsTo será criado automaticamente quando Menu.hasMany for associado
+      if (!MenuItems.associations.Role) {
+        MenuItems.belongsTo(models.Role, { foreignKey: 'id_role' });
+      }
     }
   }
   MenuItems.init({
