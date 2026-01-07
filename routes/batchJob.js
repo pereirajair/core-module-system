@@ -18,3 +18,4 @@ router.delete('/:id', authenticateToken, authorizeFunctions('batch.excluir_batch
 
 module.exports = router;
 
+

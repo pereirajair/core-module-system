@@ -179,3 +179,4 @@ exports.createPessoa = async (req, res) => {
 
 4. **Stack Trace**: Para logs de erro (tipo 3), é recomendado sempre incluir o `stackTrace` ou passar o objeto `error` para que seja extraído automaticamente.
 
+

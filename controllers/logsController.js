@@ -23,6 +23,32 @@ async function getAllLogs(req, res) {
     // Filtros opcionais
     const where = {};
     
+    // Busca geral (filter) - busca em múltiplos campos
+    const filter = req.query.filter || '';
+    if (filter) {
+      // Obter campos pesquisáveis do query param ou usar padrão
+      let searchFields = [];
+      
+      if (req.query.searchFields) {
+        searchFields = req.query.searchFields.split(',').map(f => f.trim()).filter(f => f);
+      }
+      
+      // Se não houver campos específicos, usar campos padrão da model Logs
+      if (searchFields.length === 0) {
+        searchFields = ['module', 'logMessage'];
+      }
+      
+      // Construir query OR apenas com campos que existem na model
+      const modelAttributes = Logs.rawAttributes || {};
+      const validFields = searchFields.filter(fieldName => modelAttributes[fieldName]);
+      
+      if (validFields.length > 0) {
+        where[Op.or] = validFields.map(field => ({
+          [field]: { [Op.like]: `%${filter}%` }
+        }));
+      }
+    }
+    
     if (req.query.module) {
       where.module = req.query.module;
     }

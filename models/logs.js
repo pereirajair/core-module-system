@@ -105,3 +105,4 @@ module.exports = (sequelize, DataTypes) => {
   return Logs;
 };
 
+

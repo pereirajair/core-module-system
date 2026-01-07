@@ -10,3 +10,4 @@ router.get('/:id', authenticateToken, authorizeFunctions('logs.visualizar_logs')
 
 module.exports = router;
 
+

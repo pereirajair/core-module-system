@@ -24,3 +24,4 @@ router.delete('/:id', authenticateToken, authorizeFunctions('queue.excluir_queue
 
 module.exports = router;
 
+

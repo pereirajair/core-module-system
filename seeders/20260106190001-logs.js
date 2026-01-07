@@ -78,6 +78,28 @@ module.exports = {
                             field: 'id_organization',
                             sortable: true,
                             style: 'min-width: 120px'
+                        },
+                        {
+                            name: 'actions',
+                            label: 'Ações',
+                            align: 'right',
+                            field: 'actions',
+                            sortable: false,
+                            items: [
+                                {
+                                    type: 'dialog',
+                                    icon: 'code',
+                                    color: 'primary',
+                                    tooltip: 'Visualizar Context (JSON)',
+                                    title: 'Context do Log',
+                                    component: 'JsonViewerDialog',
+                                    props: {
+                                        json: (row) => row.context,
+                                        title: (row) => `Context do Log - ${row.module || 'N/A'}`
+                                    },
+                                    condition: 'row.context && row.context !== null && row.context !== "null"'
+                                }
+                            ]
                         }
                     ],
                     layouts: [
