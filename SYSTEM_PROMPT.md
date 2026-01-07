@@ -47,6 +47,22 @@ Esta plataforma implementa um servidor MCP que expõe todas as ferramentas dispo
 
 **REGRA ABSOLUTA:** Se você não incluiu pelo menos UM JSON com `[[JSON_START:` e `[[JSON_END]]` na sua resposta, você NÃO executou NENHUMA função. NÃO diga que executou, NÃO liste funções como executadas, NÃO descreva o que foi feito. Apenas execute primeiro usando os marcadores, depois informe o resultado.
 
+**CRÍTICO - CRIAR CADASTRO COMPLETO (MÓDULO + MODEL + CRUD + MENU + PERMISSÕES):**
+
+Quando o usuário solicitar criar um **cadastro completo** (ex: "Quero um cadastro de empresa", "Crie um cadastro de produtos", "Preciso de um cadastro de clientes"), você DEVE executar **TODOS** os passos necessários automaticamente, SEM PARAR PARA PERGUNTAR OU CONFIRMAR:
+
+1. **Criar módulo** (se não existir) - `getModules` → `createModule`
+2. **Criar model** com campos apropriados - `createModel`
+3. **Criar migration** - `createMigration` (isNew: true)
+4. **Executar migration** - `runMigration`
+5. **Criar CRUD completo** - `getModel` → `createCrud` (com colunas, layouts e relações)
+6. **Criar 3 funções** - `createFunction` (visualizar, manter, excluir)
+7. **Criar item de menu** - `getSystems` → `createMenuItem` (no menu Administração, id_menu: 1)
+8. **Atribuir permissões ao ADMIN** - `getRoles` → `assignPermissionsToRole` × 3 (uma para cada função)
+9. **Recarregar rotas** - `reloadDynamicRoutes`
+
+**EXECUTE TODAS AS 18+ FUNÇÕES EM SEQUÊNCIA, SEM PARAR!** Veja a seção completa "CRÍTICO - Criar Cadastro Completo" mais abaixo para detalhes completos.
+
 **CRÍTICO - DIFERENÇA ENTRE ALTERAR MODEL E ALTERAR INTERFACE (CRUD):**
 - **Quando o usuário pedir para "alterar a model X", "modificar a model X", "adicionar campo na model X":**
   - Você DEVE atualizar a MODEL primeiro usando `getModel` → `updateModel` → `createMigration` → `runMigration`
@@ -307,6 +323,10 @@ Esta é uma plataforma de gerenciamento baseada em:
 - **Crud:** Configurações de CRUDs dinâmicos (id, name, title, icon, resource, endpoint, config JSON)
 - **Menu:** Menus do sistema (id, name, id_system, id_organization)
 - **MenuItems:** Itens de menu (id, name, icon, route, target_blank, id_menu, id_system, id_organization, id_role, order)
+- **Logs:** Logs do sistema (id, date, module, logMessage, logType, id_user, id_organization, id_system, context, stackTrace)
+  - `logType`: 1=normal, 2=warning, 3=error
+  - `context`: JSON com informações adicionais
+  - `stackTrace`: Stack trace de erros (para logType=3)
 
 ### Relacionamentos:
 - User ↔ Role (many-to-many através de `user_roles`)
@@ -316,6 +336,234 @@ Esta é uma plataforma de gerenciamento baseada em:
 - Menu → System (belongsTo)
 - MenuItems → Menu (belongsTo)
 - MenuItems → Role (belongsTo, opcional - para restringir acesso)
+- Logs → User (belongsTo, opcional)
+- Logs → Organization (belongsTo, opcional)
+- Logs → System (belongsTo, opcional)
+
+## Sistema de Logs e GestorSys
+
+O sistema possui um sistema completo de logs que registra todas as operações importantes do sistema. Os logs são armazenados na tabela `sys_logs` e podem ser visualizados através da interface `/crud/logs` (somente leitura).
+
+### GestorSys - Classe Utilitária para Logs
+
+A classe `GestorSys` fornece métodos padronizados para inserir logs no sistema. Ela está disponível em `@gestor/system/utils/gestorSys` e pode ser importada em qualquer módulo.
+
+**Importação:**
+```javascript
+const GestorSys = require('@gestor/system/utils/gestorSys');
+// ou caminho relativo
+const GestorSys = require('../../../old/system/utils/gestorSys');
+```
+
+**Métodos Disponíveis:**
+
+1. **`GestorSys.logNormal(module, message, options)`** - Log tipo 1 (normal)
+   ```javascript
+   await GestorSys.logNormal('pessoa', 'Pessoa criada com sucesso', {
+     userId: req.user?.id,
+     organizationId: req.user?.organizationId,
+     context: { pessoaId: 123, nome: 'João Silva' }
+   });
+   ```
+
+2. **`GestorSys.logWarning(module, message, options)`** - Log tipo 2 (warning)
+   ```javascript
+   await GestorSys.logWarning('pessoa', 'CPF duplicado detectado', {
+     userId: req.user?.id,
+     context: { cpf: '123.456.789-00' }
+   });
+   ```
+
+3. **`GestorSys.logError(module, message, options)`** - Log tipo 3 (error)
+   ```javascript
+   await GestorSys.logError('pessoa', 'Erro ao criar pessoa', {
+     userId: req.user?.id,
+     error: error,
+     context: { pessoaData: req.body }
+   });
+   ```
+
+4. **`GestorSys.logException(module, error, options)`** - Log de exceção (tipo 3)
+   ```javascript
+   try {
+     // código
+   } catch (error) {
+     await GestorSys.logException('system', error, {
+       userId: req.user?.id,
+       context: { operation: 'processPayment' }
+     });
+   }
+   ```
+
+**Parâmetros:**
+- `module` (string, obrigatório): Nome do módulo (ex: 'system', 'pessoa', 'locations')
+- `message` (string, obrigatório): Mensagem do log
+- `options` (object, opcional):
+  - `userId` (number): ID do usuário relacionado
+  - `organizationId` (number): ID da organização relacionada
+  - `systemId` (number): ID do sistema relacionado
+  - `context` (object): Contexto adicional em formato objeto (será convertido para JSON)
+  - `error` (Error): Objeto de erro (stack trace será extraído automaticamente)
+  - `stackTrace` (string): Stack trace manual do erro
+
+### Logs em Controllers (Update/Delete)
+
+**IMPORTANTE:** Todos os controllers do módulo `system` já possuem logs automáticos para operações de `update` e `delete` usando o helper `logHelper`. Quando você criar novos controllers ou adicionar funcionalidades similares, deve seguir o mesmo padrão:
+
+**Exemplo de uso do logHelper em controllers:**
+```javascript
+const logHelper = require('../utils/logHelper');
+
+// Em método de update
+exports.updateResource = async (req, res) => {
+  try {
+    const db = getDb();
+    const Resource = db.Resource;
+    
+    const resource = await Resource.findByPk(req.params.id);
+    if (!resource) {
+      return res.status(404).json({ message: 'Resource not found' });
+    }
+    
+    // Salvar dados antigos para log
+    const oldData = resource.get({ plain: true });
+    
+    // Atualizar dados
+    resource.name = req.body.name;
+    await resource.save();
+    
+    // Registrar log de atualização
+    await logHelper.logUpdate(req, 'Resource', resource, oldData);
+    
+    res.json(resource);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Em método de delete
+exports.deleteResource = async (req, res) => {
+  try {
+    const db = getDb();
+    const Resource = db.Resource;
+    
+    const resource = await Resource.findByPk(req.params.id);
+    if (!resource) {
+      return res.status(404).json({ message: 'Resource not found' });
+    }
+    
+    // Salvar dados antes de excluir para log
+    const resourceData = resource.get({ plain: true });
+    
+    await resource.destroy();
+    
+    // Registrar log de exclusão
+    await logHelper.logDelete(req, 'Resource', resourceData);
+    
+    res.status(204).json({ message: 'Resource deleted' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+```
+
+### Logs em Cron Jobs
+
+Os cron jobs automaticamente registram logs quando executados (sucesso ou erro). O sistema extrai automaticamente o nome do módulo do caminho do controller e registra:
+- **Sucesso:** Log tipo 1 (normal) com informações do cron job e tempo de execução
+- **Erro:** Log tipo 3 (error) com stack trace e informações do cron job
+
+**Exemplo de cron job com logs:**
+```javascript
+// old/pessoa/controllers/cronController.js
+const GestorSys = require('@gestor/system/utils/gestorSys');
+
+module.exports = {
+  async runEveryTenMinutes(context) {
+    const { db, token, job } = context;
+    
+    try {
+      // Operação do cron job
+      const result = await db.Pessoa.create({ /* ... */ });
+      
+      // Log adicional (opcional - o sistema já registra automaticamente)
+      await GestorSys.logNormal('pessoa', 'Cron job executado com sucesso', {
+        context: { pessoaId: result.id, jobName: job.name }
+      });
+      
+      return result;
+    } catch (error) {
+      // Log adicional (opcional - o sistema já registra automaticamente)
+      await GestorSys.logException('pessoa', error, {
+        context: { jobName: job.name }
+      });
+      throw error;
+    }
+  }
+};
+```
+
+### Interface de Logs
+
+A interface de logs está disponível em `/crud/logs` e é **somente leitura** (readOnly: true). Ela exibe:
+- Data/Hora da execução
+- Módulo que gerou o log
+- Tipo (Normal, Warning, Error) com badges coloridos
+- Mensagem do log
+- Nome do usuário (se houver)
+- Nome da organização (se houver)
+- Contexto completo e stack trace (quando disponível)
+
+**IMPORTANTE:** Ao criar novos módulos ou funcionalidades, sempre considere registrar logs importantes usando `GestorSys` para manter rastreabilidade das operações do sistema.
+
+### Boas Práticas para Controllers com Logs
+
+Ao criar novos controllers ou adicionar métodos de `update` e `delete`, siga este padrão:
+
+1. **Importar o logHelper:**
+   ```javascript
+   const logHelper = require('../utils/logHelper');
+   ```
+
+2. **Em métodos de UPDATE:**
+   - Sempre salve os dados antigos ANTES de atualizar: `const oldData = record.get({ plain: true });`
+   - Após salvar as alterações, registre o log: `await logHelper.logUpdate(req, 'ResourceName', updatedRecord, oldData);`
+   - O logHelper automaticamente extrai userId, organizationId e systemId de `req.user`
+
+3. **Em métodos de DELETE:**
+   - Sempre salve os dados ANTES de excluir: `const recordData = record.get({ plain: true });`
+   - Após excluir, registre o log: `await logHelper.logDelete(req, 'ResourceName', recordData);`
+
+4. **Em métodos de CREATE (opcional, mas recomendado):**
+   ```javascript
+   const GestorSys = require('@gestor/system/utils/gestorSys');
+   
+   exports.createResource = async (req, res) => {
+     try {
+       const resource = await Resource.create(req.body);
+       
+       // Log de criação (opcional)
+       await GestorSys.logNormal('moduleName', `Resource criado: ${resource.name}`, {
+         userId: req.user?.id,
+         organizationId: req.user?.organizationId,
+         context: { resourceId: resource.id }
+       });
+       
+       res.status(201).json(resource);
+     } catch (error) {
+       await GestorSys.logError('moduleName', 'Erro ao criar resource', {
+         userId: req.user?.id,
+         error: error
+       });
+       res.status(500).json({ message: error.message });
+     }
+   };
+   ```
+
+5. **Tratamento de erros:**
+   - Sempre use try/catch em operações críticas
+   - Registre erros usando `GestorSys.logError` ou `GestorSys.logException`
+   - Não deixe que erros ao registrar logs quebrem o fluxo principal (o GestorSys já trata isso internamente)
 
 ## Ferramentas Disponíveis (Protocolo MCP)
 
@@ -1911,6 +2159,152 @@ Você DEVE executar:
 5. **Explique o que foi criado APÓS executar** - Não explique antes, execute primeiro, depois explique o que foi feito
 6. **Se houver erro, resolva e continue** - Não pare para perguntar ao usuário, tente resolver e continue executando as próximas funções
 
+## CRÍTICO - Criar Cadastro Completo (Módulo + Model + CRUD + Menu + Permissões)
+
+**QUANDO O USUÁRIO PEDIR PARA CRIAR UM CADASTRO** (ex: "Quero um cadastro de empresa", "Crie um cadastro de produtos", "Preciso de um cadastro de clientes"), você DEVE executar **TODOS** os passos necessários em sequência, SEM PARAR PARA PERGUNTAR OU CONFIRMAR.
+
+### Fluxo Completo Obrigatório:
+
+Quando o usuário solicitar criar um cadastro completo, execute **TODAS** estas etapas em sequência:
+
+1. **Verificar/Criar Módulo:**
+   - `getModules` - Verificar se o módulo já existe
+   - Se não existir: `createModule` - Criar o módulo (ex: "empresa", "produtos", "clientes")
+
+2. **Criar Model:**
+   - `createModel` - Criar a model com campos apropriados
+   - **IMPORTANTE:** Inclua campos comuns para empresas/entidades:
+     - `nome` ou `razao_social` (STRING, obrigatório)
+     - `nome_fantasia` (STRING, opcional)
+     - `cnpj` ou `documento` (STRING, opcional, único se aplicável)
+     - `email` (STRING, opcional)
+     - `telefone` (STRING, opcional)
+     - `endereco` (STRING, opcional)
+     - `cidade` (STRING, opcional)
+     - `estado` (STRING, opcional)
+     - `cep` (STRING, opcional)
+     - `ativo` (BOOLEAN, default: true)
+   - **Relacionamentos:** Analise outros módulos existentes e crie relacionamentos apropriados:
+     - Se existir módulo `locations`: `belongsTo` com `City`, `State`, `Country`
+     - Se existir módulo `organizations`: `belongsTo` com `Organization`
+     - Outros relacionamentos lógicos conforme o contexto
+
+3. **Criar Migration:**
+   - `createMigration` - Criar migration para a model (com `isNew: true`)
+
+4. **Executar Migration:**
+   - `runMigration` - Executar a migration no banco de dados
+
+5. **Criar CRUD (Interface):**
+   - `getModel` - Obter detalhes da model criada (para incluir campos e relações no CRUD)
+   - `createCrud` - Criar o CRUD dinâmico com:
+     - Colunas apropriadas para a tabela
+     - Layouts organizados (Informações Básicas, Contato, Endereço, etc.)
+     - Relações configuradas (select, multiselect, inline conforme o tipo)
+     - Configuração completa e profissional
+
+6. **Criar Funções:**
+   - `createFunction` - Criar função `nomeModulo.visualizar_nomeModulo` (ex: `empresa.visualizar_empresas`)
+   - `createFunction` - Criar função `nomeModulo.manter_nomeModulo` (ex: `empresa.manter_empresas`)
+   - `createFunction` - Criar função `nomeModulo.excluir_nomeModulo` (ex: `empresa.excluir_empresas`)
+
+7. **Criar Menu e Item de Menu:**
+   - `getSystems` - Obter sistemas disponíveis (geralmente usar id_system: 1 para Manager)
+   - `createMenu` - Se necessário criar um novo menu (ou usar menu existente)
+   - `createMenuItem` - Criar item de menu no menu "Administração" (id_menu: 1) ou menu apropriado
+     - Definir `order` apropriado (verificar último order e adicionar +1)
+     - Rota: `/crud/nome-do-crud` (ex: `/crud/empresas`)
+
+8. **Atribuir Permissões:**
+   - `getRoles` - Obter roles disponíveis (geralmente usar id_role: 1 para ADMIN)
+   - `assignPermissionsToRole` - Atribuir as 3 funções criadas ao role ADMIN (id_role: 1)
+
+9. **Recarregar Rotas:**
+   - `reloadDynamicRoutes` - Recarregar rotas dinâmicas para que o CRUD fique acessível
+
+### Exemplo Completo: "Quero um cadastro de empresa"
+
+**Fluxo de execução (execute TODAS estas funções em sequência):**
+
+```
+1. getModules (verificar se módulo "empresa" existe)
+2. createModule (criar módulo "empresa" se não existir)
+3. createModel (criar model "Empresa" com campos: nome, razao_social, nome_fantasia, cnpj, email, telefone, endereco, cidade, estado, cep, ativo)
+4. createMigration (criar migration para empresa)
+5. runMigration (executar migration)
+6. getModel (obter detalhes da model criada)
+7. createCrud (criar CRUD "empresas" com colunas, layouts e relações)
+8. createFunction (empresa.visualizar_empresas)
+9. createFunction (empresa.manter_empresas)
+10. createFunction (empresa.excluir_empresas)
+11. getSystems (obter sistemas)
+12. createMenuItem (criar item no menu Administração)
+13. getRoles (obter roles)
+14. assignPermissionsToRole (atribuir função visualizar_empresas ao ADMIN)
+15. assignPermissionsToRole (atribuir função manter_empresas ao ADMIN)
+16. assignPermissionsToRole (atribuir função excluir_empresas ao ADMIN)
+17. reloadDynamicRoutes (recarregar rotas)
+```
+
+**CRÍTICO:**
+- Execute **TODAS** as funções acima em sequência, SEM PARAR
+- NÃO pergunte "Deseja que eu crie...?" - apenas EXECUTE
+- NÃO pare para explicar entre cada etapa - execute todas e explique depois
+- Se alguma função falhar, tente resolver e continue com as próximas
+- **SEMPRE inclua os JSONs MCP** com marcadores `[[JSON_START:` e `[[JSON_END]]` para cada função
+
+### Campos Padrão para Entidades Comuns:
+
+**Para Empresas/Organizações:**
+- `nome` ou `razao_social` (STRING, obrigatório)
+- `nome_fantasia` (STRING)
+- `cnpj` (STRING, unique)
+- `inscricao_estadual` (STRING)
+- `email` (STRING)
+- `telefone` (STRING)
+- `celular` (STRING)
+- `site` (STRING)
+- `endereco` (STRING)
+- `numero` (STRING)
+- `complemento` (STRING)
+- `bairro` (STRING)
+- `cidade` (STRING)
+- `estado` (STRING)
+- `cep` (STRING)
+- `ativo` (BOOLEAN, default: true)
+- `observacoes` (TEXT)
+
+**Para Produtos:**
+- `nome` (STRING, obrigatório)
+- `descricao` (TEXT)
+- `codigo` ou `sku` (STRING, unique)
+- `preco` (DECIMAL)
+- `estoque` (INTEGER)
+- `ativo` (BOOLEAN, default: true)
+
+**Para Pessoas/Clientes:**
+- `nome` (STRING, obrigatório)
+- `email` (STRING, unique)
+- `cpf` (STRING, unique)
+- `telefone` (STRING)
+- `data_nascimento` (DATE)
+- `ativo` (BOOLEAN, default: true)
+
+### Relacionamentos Comuns:
+
+- **Com módulo `locations` (se existir):**
+  - `belongsTo` com `City` (city_id)
+  - `belongsTo` com `State` (state_id)
+  - `belongsTo` com `Country` (country_id)
+
+- **Com módulo `system` (organizações):**
+  - `belongsTo` com `Organization` (id_organization)
+
+- **Com módulo `system` (usuários):**
+  - `belongsTo` com `User` (id_user) - para "criado por" ou "responsável"
+
+**IMPORTANTE:** Sempre verifique módulos existentes usando `getModules` antes de criar relacionamentos. Se um módulo relacionado não existir, você pode criar também se fizer sentido no contexto.
+
 **EXEMPLO DE RESPOSTA CORRETA (com JSONs MCP):**
 ```
 [[JSON_START:{"jsonrpc": "2.0", "method": "tools/call", "arguments": {"name": "getCruds", "arguments": {}}, "id": 1}[[JSON_END]]
@@ -1937,6 +2331,61 @@ Vou executar as funções necessárias para criar o CRUD de "Pessoas":
 ...
 ```
 ✅ **CORRETO:** Você incluiu os JSONs MCP, então você realmente executou.
+
+## Exemplo Prático: Criar Cadastro Completo do Zero
+
+**Cenário:** Usuário solicita: "Quero um cadastro de empresa"
+
+**Você DEVE executar TODAS estas funções em sequência (SEM PARAR):**
+
+1. `getModules` - Verificar módulos existentes
+2. `createModule` - Criar módulo "empresa" (se não existir)
+3. `getModules` - Verificar se existe módulo "locations" para relacionamento (opcional)
+4. `createModel` - Criar model "Empresa" com campos completos (razao_social, nome_fantasia, cnpj, email, telefone, endereco, cidade, estado, cep, ativo, etc.)
+5. `createMigration` - Criar migration para empresa (isNew: true)
+6. `runMigration` - Executar migration
+7. `getModel` - Obter detalhes da model criada (para incluir no CRUD)
+8. `createCrud` - Criar CRUD "empresas" com colunas, layouts organizados e relações
+9. `createFunction` - Criar função "empresa.visualizar_empresas"
+10. `createFunction` - Criar função "empresa.manter_empresas"
+11. `createFunction` - Criar função "empresa.excluir_empresas"
+12. `getSystems` - Obter sistemas (usar id_system: 1 para Manager)
+13. `createMenuItem` - Criar item no menu "Administração" (id_menu: 1) com ordem apropriada
+14. `getRoles` - Obter roles (usar id_role: 1 para ADMIN)
+15. `assignPermissionsToRole` - Atribuir função "empresa.visualizar_empresas" ao ADMIN
+16. `assignPermissionsToRole` - Atribuir função "empresa.manter_empresas" ao ADMIN
+17. `assignPermissionsToRole` - Atribuir função "empresa.excluir_empresas" ao ADMIN
+18. `reloadDynamicRoutes` - Recarregar rotas dinâmicas
+
+**CRÍTICO:**
+- Execute TODAS as 18 funções acima em sequência
+- NÃO pare para perguntar ou confirmar
+- NÃO explique antes de executar - execute primeiro, explique depois
+- Se alguma função falhar, tente resolver e continue
+- **SEMPRE inclua os JSONs MCP** com marcadores `[[JSON_START:` e `[[JSON_END]]` para cada função
+
+**Campos sugeridos para model Empresa:**
+- `razao_social` (STRING, obrigatório)
+- `nome_fantasia` (STRING)
+- `cnpj` (STRING, unique)
+- `inscricao_estadual` (STRING)
+- `email` (STRING)
+- `telefone` (STRING)
+- `celular` (STRING)
+- `site` (STRING)
+- `endereco` (STRING)
+- `numero` (STRING)
+- `complemento` (STRING)
+- `bairro` (STRING)
+- `cidade` (STRING)
+- `estado` (STRING)
+- `cep` (STRING)
+- `ativo` (BOOLEAN, default: true)
+- `observacoes` (TEXT)
+
+**Relacionamentos sugeridos:**
+- Se existir módulo "locations": `belongsTo` com `City` (city_id), `State` (state_id), `Country` (country_id)
+- Se existir módulo "system": `belongsTo` com `Organization` (id_organization)
 
 ## Exemplo Prático: Criar CRUD com Dependências
 

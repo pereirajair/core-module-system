@@ -7,12 +7,12 @@ module.exports = {
         await queryInterface.bulkInsert('sys_cruds', [
             {
                 name: 'logs',
-                title: 'Logs do Sistema',
+                title: 'Logs',
                 icon: 'description',
                 resource: 'Logs',
                 endpoint: '/api/logs',
                 active: true,
-                isSystem: true,
+                isSystem: false,
                 config: JSON.stringify({
                     title: 'Logs do Sistema',
                     icon: 'description',
@@ -20,6 +20,9 @@ module.exports = {
                     endpoint: '/api/logs',
                     rowKey: 'id',
                     readOnly: true, // Interface apenas de consulta
+                    showFab: false, // Não exibir botão de inclusão
+                    canDelete: false, // Não permitir exclusão
+                    canEdit: false, // Não permitir edição
                     columns: [
                         {
                             name: 'date',
@@ -61,12 +64,12 @@ module.exports = {
                             style: 'min-width: 300px'
                         },
                         {
-                            name: 'id_user',
+                            name: 'userName',
                             label: 'Usuário',
                             align: 'center',
-                            field: 'id_user',
+                            field: 'User.name',
                             sortable: true,
-                            style: 'min-width: 100px'
+                            style: 'min-width: 160px'
                         },
                         {
                             name: 'id_organization',

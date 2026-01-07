@@ -7,6 +7,9 @@ function getDb() {
   return modelsLoader.loadModels();
 }
 
+// Helper para logs
+const logHelper = require('../utils/logHelper');
+
 exports.getAllFunctions = async (req, res) => {
   try {
     const db = getDb();
@@ -103,9 +106,17 @@ exports.updateFunction = async (req, res) => {
     if (!func) {
       return res.status(404).json({ message: 'Function not found' });
     }
+    
+    // Salvar dados antigos para log
+    const oldData = func.get({ plain: true });
+    
     func.name = name;
     func.title = title;
     await func.save();
+    
+    // Registrar log de atualização
+    await logHelper.logUpdate(req, 'Function', func, oldData);
+    
     res.json(func);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -121,7 +132,15 @@ exports.deleteFunction = async (req, res) => {
     if (!func) {
       return res.status(404).json({ message: 'Function not found' });
     }
+    
+    // Salvar dados antes de excluir para log
+    const funcData = func.get({ plain: true });
+    
     await func.destroy();
+    
+    // Registrar log de exclusão
+    await logHelper.logDelete(req, 'Function', funcData);
+    
     res.status(204).json({ message: 'Function deleted' });
   } catch (error) {
     res.status(500).json({ message: error.message });

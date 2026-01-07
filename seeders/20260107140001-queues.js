@@ -3,26 +3,26 @@
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
     async up(queryInterface, Sequelize) {
-        // 1. Create CRUD for CronJobs
+        // 1. Create CRUD for Queues
         await queryInterface.bulkInsert('sys_cruds', [
             {
-                name: 'cron-jobs',
-                title: 'Cron Jobs',
-                icon: 'schedule',
-                resource: 'CronJob',
-                endpoint: '/api/cron-jobs',
+                name: 'queues',
+                title: 'Filas',
+                icon: 'list_alt',
+                resource: 'Queue',
+                endpoint: '/api/queues',
                 active: true,
                 isSystem: false,
                 config: JSON.stringify({
-                    title: 'Cron Jobs',
-                    icon: 'schedule',
-                    resource: 'CronJob',
-                    endpoint: '/api/cron-jobs',
+                    title: 'Filas',
+                    icon: 'list_alt',
+                    resource: 'Queue',
+                    endpoint: '/api/queues',
                     rowKey: 'id',
-                    createRoute: '/crud/cron-jobs/new',
-                    editRoute: '/crud/cron-jobs/:id',
-                    deleteMessage: 'Deseja realmente excluir o cron job "${row.name}"?',
-                    deleteSuccessMessage: 'Cron job excluído com sucesso!',
+                    createRoute: '/crud/queues/new',
+                    editRoute: '/crud/queues/:id',
+                    deleteMessage: 'Deseja realmente excluir a fila "${row.name}"?',
+                    deleteSuccessMessage: 'Fila excluída com sucesso!',
                     columns: [
                         {
                             name: 'name',
@@ -42,12 +42,13 @@ module.exports = {
                             style: 'min-width: 250px'
                         },
                         {
-                            name: 'cronExpression',
-                            label: 'Expressão Cron',
+                            name: 'itemsPerBatch',
+                            label: 'Itens por Lote',
                             align: 'center',
-                            field: 'cronExpression',
+                            field: 'itemsPerBatch',
                             sortable: true,
-                            style: 'min-width: 150px'
+                            style: 'min-width: 120px',
+                            format: 'number'
                         },
                         {
                             name: 'active',
@@ -59,24 +60,40 @@ module.exports = {
                             format: 'badge'
                         },
                         {
-                            name: 'lastExecution',
-                            label: 'Última Execução',
+                            name: 'processing',
+                            label: 'Processando',
                             align: 'center',
-                            field: 'lastExecution',
-                            sortable: true,
-                            style: 'min-width: 180px',
-                            format: 'datetime'
-                        },
-                        {
-                            name: 'lastExecutionSuccess',
-                            label: 'Status',
-                            align: 'center',
-                            field: 'lastExecutionSuccess',
+                            field: 'processing',
                             sortable: true,
                             style: 'min-width: 100px',
-                            format: 'badge',
-                            badgeTrueLabel: 'OK',
-                            badgeFalseLabel: 'Erro'
+                            format: 'badge'
+                        },
+                        {
+                            name: 'totalItems',
+                            label: 'Total Itens',
+                            align: 'center',
+                            field: 'totalItems',
+                            sortable: true,
+                            style: 'min-width: 100px',
+                            format: 'number'
+                        },
+                        {
+                            name: 'totalProcessed',
+                            label: 'Processados',
+                            align: 'center',
+                            field: 'totalProcessed',
+                            sortable: true,
+                            style: 'min-width: 100px',
+                            format: 'number'
+                        },
+                        {
+                            name: 'totalFailed',
+                            label: 'Falhas',
+                            align: 'center',
+                            field: 'totalFailed',
+                            sortable: true,
+                            style: 'min-width: 100px',
+                            format: 'number'
                         },
                         {
                             name: 'actions',
@@ -89,13 +106,13 @@ module.exports = {
                                     type: 'api',
                                     icon: 'play_arrow',
                                     color: 'positive',
-                                    tooltip: 'Executar Cron Job',
+                                    tooltip: 'Processar Fila',
                                     method: 'post',
-                                    endpoint: '${context.endpoint}/${row.id}/execute',
-                                    roles: ['cron.manter_cron_jobs'],
+                                    endpoint: '${context.endpoint}/${row.id}/process',
+                                    roles: ['queue.manter_queues'],
                                     onSuccess: {
                                         type: 'message',
-                                        message: 'Cron job executado com sucesso!',
+                                        message: 'Fila processada com sucesso!',
                                         color: 'positive',
                                         icon: 'check'
                                     },
@@ -106,14 +123,14 @@ module.exports = {
                                     icon: 'delete',
                                     color: 'negative',
                                     tooltip: 'Excluir',
-                                    roles: ['cron.excluir_cron_jobs']
+                                    roles: ['queue.excluir_queues']
                                 }
                             ]
                         }
                     ],
                     layouts: [
                         {
-                            title: 'Informações do Cron Job',
+                            title: 'Informações da Fila',
                             rows: [
                                 {
                                     cols: [
@@ -122,10 +139,10 @@ module.exports = {
                                             fields: [
                                                 {
                                                     name: 'name',
-                                                    label: 'Nome do Cron Job *',
+                                                    label: 'Nome da Fila *',
                                                     type: 'text',
                                                     rules: ['val => !!val || "Nome é obrigatório"'],
-                                                    hint: 'Nome único para identificar o cron job'
+                                                    hint: 'Nome único para identificar a fila'
                                                 }
                                             ]
                                         },
@@ -152,7 +169,7 @@ module.exports = {
                                                     label: 'Descrição',
                                                     type: 'textarea',
                                                     rows: 2,
-                                                    hint: 'Descrição do que o cron job faz'
+                                                    hint: 'Descrição da fila'
                                                 }
                                             ]
                                         }
@@ -168,7 +185,7 @@ module.exports = {
                                                     label: 'Controller *',
                                                     type: 'text',
                                                     rules: ['val => !!val || "Controller é obrigatório"'],
-                                                    hint: 'Caminho do controller (ex: ../controllers/cronController)'
+                                                    hint: 'Caminho do controller (ex: @gestor/pessoa/controllers/queueController)'
                                                 }
                                             ]
                                         },
@@ -180,7 +197,7 @@ module.exports = {
                                                     label: 'Método *',
                                                     type: 'text',
                                                     rules: ['val => !!val || "Método é obrigatório"'],
-                                                    hint: 'Nome do método do controller a ser executado'
+                                                    hint: 'Nome do método do controller que processa os itens'
                                                 }
                                             ]
                                         }
@@ -189,18 +206,41 @@ module.exports = {
                                 {
                                     cols: [
                                         {
-                                            width: '100%',
+                                            width: '33%',
                                             fields: [
                                                 {
-                                                    name: 'cronExpression',
-                                                    label: 'Expressão Cron *',
-                                                    type: 'text',
-                                                    rules: [
-                                                        'val => !!val || "Expressão cron é obrigatória"',
-                                                        'val => /^[0-9*\/\-, ]+$/.test(val) || "Formato inválido. Use: minuto hora dia mês dia-semana (ex: 0 0 * * *)"'
-                                                    ],
-                                                    hint: 'Formato: minuto hora dia mês dia-semana (ex: 0 0 * * * = diariamente à meia-noite)',
-                                                    placeholder: '0 0 * * *'
+                                                    name: 'itemsPerBatch',
+                                                    label: 'Itens por Lote *',
+                                                    type: 'number',
+                                                    rules: ['val => !!val || "Itens por lote é obrigatório"', 'val => val > 0 || "Deve ser maior que zero"'],
+                                                    default: 10,
+                                                    hint: 'Quantidade de itens processados por vez'
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            width: '33%',
+                                            fields: [
+                                                {
+                                                    name: 'maxAttempts',
+                                                    label: 'Máx. Tentativas *',
+                                                    type: 'number',
+                                                    rules: ['val => !!val || "Máximo de tentativas é obrigatório"', 'val => val > 0 || "Deve ser maior que zero"'],
+                                                    default: 3,
+                                                    hint: 'Número máximo de tentativas para processar um item com erro'
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            width: '33%',
+                                            fields: [
+                                                {
+                                                    name: 'retryDelay',
+                                                    label: 'Delay Retry (seg) *',
+                                                    type: 'number',
+                                                    rules: ['val => !!val || "Delay de retry é obrigatório"', 'val => val >= 0 || "Deve ser maior ou igual a zero"'],
+                                                    default: 60,
+                                                    hint: 'Delay em segundos antes de tentar processar novamente um item com erro'
                                                 }
                                             ]
                                         }
@@ -209,7 +249,7 @@ module.exports = {
                             ]
                         },
                         {
-                            title: 'Informações de Execução',
+                            title: 'Estatísticas',
                             rows: [
                                 {
                                     cols: [
@@ -217,23 +257,19 @@ module.exports = {
                                             width: '50%',
                                             fields: [
                                                 {
-                                                    name: 'lastExecution',
-                                                    label: 'Última Execução',
+                                                    name: 'lastProcessed',
+                                                    label: 'Último Processamento',
                                                     type: 'datetime',
                                                     readonly: true
                                                 }
                                             ]
                                         },
-                                    ]
-                                },
-                                {
-                                    cols: [
                                         {
                                             width: '50%',
                                             fields: [
                                                 {
-                                                    name: 'lastExecutionSuccess',
-                                                    label: 'Última Execução Bem-sucedida',
+                                                    name: 'processing',
+                                                    label: 'Processando',
                                                     type: 'boolean',
                                                     readonly: true
                                                 }
@@ -244,13 +280,34 @@ module.exports = {
                                 {
                                     cols: [
                                         {
-                                            width: '100%',
+                                            width: '33%',
                                             fields: [
                                                 {
-                                                    name: 'lastExecutionLog',
-                                                    label: 'Último Log de Execução',
-                                                    type: 'textarea',
-                                                    rows: 4,
+                                                    name: 'totalItems',
+                                                    label: 'Total de Itens',
+                                                    type: 'number',
+                                                    readonly: true
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            width: '33%',
+                                            fields: [
+                                                {
+                                                    name: 'totalProcessed',
+                                                    label: 'Total Processados',
+                                                    type: 'number',
+                                                    readonly: true
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            width: '33%',
+                                            fields: [
+                                                {
+                                                    name: 'totalFailed',
+                                                    label: 'Total Falhas',
+                                                    type: 'number',
                                                     readonly: true
                                                 }
                                             ]
@@ -263,42 +320,45 @@ module.exports = {
                     fields: [
                         {
                             name: 'name',
-                            label: 'Nome do Cron Job',
+                            label: 'Nome da Fila',
                             type: 'text',
-                            rules: ['val => !!val || "Nome é obrigatório"'],
-                            hint: 'Nome único para identificar o cron job'
+                            rules: ['val => !!val || "Nome é obrigatório"']
                         },
                         {
                             name: 'description',
                             label: 'Descrição',
                             type: 'textarea',
-                            rows: 2,
-                            hint: 'Descrição do que o cron job faz'
+                            rows: 2
                         },
                         {
                             name: 'controller',
                             label: 'Controller',
                             type: 'text',
-                            rules: ['val => !!val || "Controller é obrigatório"'],
-                            hint: 'Caminho do controller (ex: ../controllers/cronController)'
+                            rules: ['val => !!val || "Controller é obrigatório"']
                         },
                         {
                             name: 'method',
                             label: 'Método',
                             type: 'text',
-                            rules: ['val => !!val || "Método é obrigatório"'],
-                            hint: 'Nome do método do controller a ser executado'
+                            rules: ['val => !!val || "Método é obrigatório"']
                         },
                         {
-                            name: 'cronExpression',
-                            label: 'Expressão Cron',
-                            type: 'text',
-                            rules: [
-                                'val => !!val || "Expressão cron é obrigatória"',
-                                'val => /^[0-9*\/\-, ]+$/.test(val) || "Formato inválido"'
-                            ],
-                            hint: 'Formato: minuto hora dia mês dia-semana (ex: 0 0 * * *)',
-                            placeholder: '0 0 * * *'
+                            name: 'itemsPerBatch',
+                            label: 'Itens por Lote',
+                            type: 'number',
+                            default: 10
+                        },
+                        {
+                            name: 'maxAttempts',
+                            label: 'Máximo de Tentativas',
+                            type: 'number',
+                            default: 3
+                        },
+                        {
+                            name: 'retryDelay',
+                            label: 'Delay de Retry (segundos)',
+                            type: 'number',
+                            default: 60
                         },
                         {
                             name: 'active',
@@ -311,33 +371,33 @@ module.exports = {
                 createdAt: new Date(),
                 updatedAt: new Date()
             }
-        ], {});
+        ], { ignoreDuplicates: true });
 
-        // 2. Create functions for CronJobs
+        // 2. Create functions for Queues
         await queryInterface.bulkInsert('sys_functions', [
             {
-                name: 'cron.visualizar_cron_jobs',
-                title: 'Visualizar Cron Jobs',
+                name: 'queue.visualizar_queues',
+                title: 'Visualizar Filas',
                 createdAt: new Date(),
                 updatedAt: new Date()
             },
             {
-                name: 'cron.manter_cron_jobs',
-                title: 'Manter Cron Jobs',
+                name: 'queue.manter_queues',
+                title: 'Manter Filas',
                 createdAt: new Date(),
                 updatedAt: new Date()
             },
             {
-                name: 'cron.excluir_cron_jobs',
-                title: 'Excluir Cron Jobs',
+                name: 'queue.excluir_queues',
+                title: 'Excluir Filas',
                 createdAt: new Date(),
                 updatedAt: new Date()
             }
-        ], {});
+        ], { ignoreDuplicates: true });
 
         // 3. Get function IDs
         const functions = await queryInterface.sequelize.query(
-            `SELECT id, name FROM sys_functions WHERE name LIKE 'cron.%'`,
+            `SELECT id, name FROM sys_functions WHERE name LIKE 'queue.%'`,
             { type: queryInterface.sequelize.QueryTypes.SELECT }
         );
 
@@ -347,111 +407,42 @@ module.exports = {
         });
 
         // 4. Assign functions to ADMIN role (id: 1) for System 1
-        const roleFunctionInserts = [
-            {
-                id_role: 1,
-                id_function: functionMap['cron.visualizar_cron_jobs'],
-                createdAt: new Date(),
-                updatedAt: new Date()
-            },
-            {
-                id_role: 1,
-                id_function: functionMap['cron.manter_cron_jobs'],
-                createdAt: new Date(),
-                updatedAt: new Date()
-            },
-            {
-                id_role: 1,
-                id_function: functionMap['cron.excluir_cron_jobs'],
-                createdAt: new Date(),
-                updatedAt: new Date()
-            }
-        ];
+        if (functionMap['queue.visualizar_queues'] && functionMap['queue.manter_queues'] && functionMap['queue.excluir_queues']) {
+            await queryInterface.bulkInsert('sys_roles_functions', [
+                {
+                    id_role: 1,
+                    id_function: functionMap['queue.visualizar_queues'],
+                    createdAt: new Date(),
+                    updatedAt: new Date()
+                },
+                {
+                    id_role: 1,
+                    id_function: functionMap['queue.manter_queues'],
+                    createdAt: new Date(),
+                    updatedAt: new Date()
+                },
+                {
+                    id_role: 1,
+                    id_function: functionMap['queue.excluir_queues'],
+                    createdAt: new Date(),
+                    updatedAt: new Date()
+                }
+            ], { ignoreDuplicates: true });
+        }
 
-        await queryInterface.bulkInsert('sys_roles_functions', roleFunctionInserts, {});
-
-        // 5. Insert default Cron Jobs for system module
-        await queryInterface.bulkInsert('sys_cron_jobs', [
-            {
-                name: 'system-every-minute',
-                description: 'Exemplo de cron job do módulo system executado a cada minuto',
-                controller: '@gestor/system/controllers/cronController',
-                method: 'runEveryMinute',
-                cronExpression: '* * * * *',
-                active: true,
-                lastExecution: null,
-                lastExecutionSuccess: null,
-                lastExecutionLog: null,
-                createdAt: new Date(),
-                updatedAt: new Date()
-            },
-            {
-                name: 'system-every-5-minutes',
-                description: 'Exemplo de cron job do módulo system executado a cada 5 minutos',
-                controller: '@gestor/system/controllers/cronController',
-                method: 'runEveryFiveMinutes',
-                cronExpression: '*/5 * * * *',
-                active: true,
-                lastExecution: null,
-                lastExecutionSuccess: null,
-                lastExecutionLog: null,
-                createdAt: new Date(),
-                updatedAt: new Date()
-            },
-            {
-                name: 'system-batch-processing',
-                description: 'Cron job que executa todos os batch jobs cadastrados no sistema',
-                controller: '@gestor/system/controllers/batchController',
-                method: 'executeBatchJobs',
-                cronExpression: '* * * * *',
-                active: true,
-                lastExecution: null,
-                lastExecutionSuccess: null,
-                lastExecutionLog: null,
-                createdAt: new Date(),
-                updatedAt: new Date()
-            },
-            {
-                name: 'system-queue-processing',
-                description: 'Cron job que processa todas as filas ativas do sistema',
-                controller: '@gestor/system/controllers/batchController',
-                method: 'processQueues',
-                cronExpression: '* * * * *',
-                active: true,
-                lastExecution: null,
-                lastExecutionSuccess: null,
-                lastExecutionLog: null,
-                createdAt: new Date(),
-                updatedAt: new Date()
-            },
-            {
-                name: 'system-mailer-add-to-queue',
-                description: 'Cron job que adiciona 20 emails pendentes à fila a cada 5 minutos',
-                controller: '@gestor/system/controllers/mailerController',
-                method: 'addEmailsToQueue',
-                cronExpression: '*/5 * * * *',
-                active: true,
-                lastExecution: null,
-                lastExecutionSuccess: null,
-                lastExecutionLog: null,
-                createdAt: new Date(),
-                updatedAt: new Date()
-            }
-        ], {});
-
-        // 6. Get max order from menu items in Administration menu (id: 1)
+        // 5. Get max order from menu items in Administration menu (id: 1)
         const maxOrderResult = await queryInterface.sequelize.query(
             `SELECT MAX(\`order\`) as maxOrder FROM sys_menu_items WHERE id_menu = 1`,
             { type: queryInterface.sequelize.QueryTypes.SELECT }
         );
         const maxOrder = maxOrderResult[0]?.maxOrder || 0;
 
-        // 7. Create menu item for CronJobs in Administration menu (id: 1)
+        // 6. Create menu item for Queues in Administration menu (id: 1)
         await queryInterface.bulkInsert('sys_menu_items', [
             {
-                name: 'Cron Jobs',
-                icon: 'schedule',
-                route: '/crud/cron-jobs',
+                name: 'Filas',
+                icon: 'list_alt',
+                route: '/crud/queues',
                 target_blank: false,
                 id_menu: 1,
                 id_system: 1,
@@ -461,16 +452,16 @@ module.exports = {
                 createdAt: new Date(),
                 updatedAt: new Date()
             }
-        ], {});
+        ], { ignoreDuplicates: true });
     },
 
     async down(queryInterface, Sequelize) {
         // Remove in reverse order
-        await queryInterface.bulkDelete('sys_menu_items', { route: '/crud/cron-jobs' }, {});
+        await queryInterface.bulkDelete('sys_menu_items', { route: '/crud/queues' }, {});
 
         // Get function IDs before deleting
         const functions = await queryInterface.sequelize.query(
-            `SELECT id FROM sys_functions WHERE name LIKE 'cron.%'`,
+            `SELECT id FROM sys_functions WHERE name LIKE 'queue.%'`,
             { type: queryInterface.sequelize.QueryTypes.SELECT }
         );
         const functionIds = functions.map(f => f.id);
@@ -482,12 +473,9 @@ module.exports = {
         }
 
         await queryInterface.bulkDelete('sys_functions', {
-            name: { [Sequelize.Op.like]: 'cron.%' }
+            name: { [Sequelize.Op.like]: 'queue.%' }
         }, {});
-        await queryInterface.bulkDelete('sys_cruds', { name: 'cron-jobs' }, {});
-        await queryInterface.bulkDelete('sys_cron_jobs', {
-            name: { [Sequelize.Op.in]: ['system-every-minute', 'system-every-5-minutes'] }
-        }, {});
+        await queryInterface.bulkDelete('sys_cruds', { name: 'queues' }, {});
     }
 };
 

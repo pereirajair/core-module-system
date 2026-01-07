@@ -7,6 +7,9 @@ function getDb() {
   return modelsLoader.loadModels();
 }
 
+// Helper para logs
+const logHelper = require('../utils/logHelper');
+
 exports.getAllRoles = async (req, res) => {
   try {
     const db = getDb();
@@ -121,9 +124,17 @@ exports.updateRole = async (req, res) => {
     if (!role) {
       return res.status(404).json({ message: 'Role not found' });
     }
+    
+    // Salvar dados antigos para log
+    const oldData = role.get({ plain: true });
+    
     role.name = name;
     role.id_system = id_system;
     await role.save();
+    
+    // Registrar log de atualização
+    await logHelper.logUpdate(req, 'Role', role, oldData);
+    
     res.json(role);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -139,7 +150,15 @@ exports.deleteRole = async (req, res) => {
     if (!role) {
       return res.status(404).json({ message: 'Role not found' });
     }
+    
+    // Salvar dados antes de excluir para log
+    const roleData = role.get({ plain: true });
+    
     await role.destroy();
+    
+    // Registrar log de exclusão
+    await logHelper.logDelete(req, 'Role', roleData);
+    
     res.status(204).json({ message: 'Role deleted' });
   } catch (error) {
     res.status(500).json({ message: error.message });

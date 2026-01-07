@@ -6,6 +6,9 @@ function getDb() {
   return modelsLoader.loadModels();
 }
 
+// Helper para logs
+const logHelper = require('../utils/logHelper');
+
 /**
  * Get all settings with optional filtering
  */
@@ -190,11 +193,19 @@ exports.createSetting = async (req, res) => {
 exports.updateSetting = async (req, res) => {
     try {
     const db = getDb();
+        const Setting = db.Setting;
+        const System = db.System;
+        const User = db.User;
+        const Organization = db.Organization;
+        
         const setting = await Setting.findByPk(req.params.id);
 
         if (!setting) {
             return res.status(404).json({ message: 'Setting not found' });
         }
+
+        // Salvar dados antigos para log
+        const oldData = setting.get({ plain: true });
 
         const { id_system, id_user, id_organization, moduleName, name, description, configType, configValue, active } = req.body;
 
@@ -225,6 +236,9 @@ exports.updateSetting = async (req, res) => {
             ]
         });
 
+        // Registrar log de atualização
+        await logHelper.logUpdate(req, 'Setting', settingWithAssociations, oldData);
+
         res.json(settingWithAssociations);
     } catch (error) {
         console.error('Error updating setting:', error);
@@ -238,13 +252,22 @@ exports.updateSetting = async (req, res) => {
 exports.deleteSetting = async (req, res) => {
     try {
     const db = getDb();
+        const Setting = db.Setting;
+        
         const setting = await Setting.findByPk(req.params.id);
 
         if (!setting) {
             return res.status(404).json({ message: 'Setting not found' });
         }
 
+        // Salvar dados antes de excluir para log
+        const settingData = setting.get({ plain: true });
+        
         await setting.destroy();
+        
+        // Registrar log de exclusão
+        await logHelper.logDelete(req, 'Setting', settingData);
+        
         res.status(204).send();
     } catch (error) {
         console.error('Error deleting setting:', error);

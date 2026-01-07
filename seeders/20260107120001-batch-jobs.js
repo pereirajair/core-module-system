@@ -3,26 +3,26 @@
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
     async up(queryInterface, Sequelize) {
-        // 1. Create CRUD for CronJobs
+        // 1. Create CRUD for BatchJobs
         await queryInterface.bulkInsert('sys_cruds', [
             {
-                name: 'cron-jobs',
-                title: 'Cron Jobs',
-                icon: 'schedule',
-                resource: 'CronJob',
-                endpoint: '/api/cron-jobs',
+                name: 'batch-jobs',
+                title: 'Batch Jobs',
+                icon: 'queue',
+                resource: 'BatchJob',
+                endpoint: '/api/batch-jobs',
                 active: true,
                 isSystem: false,
                 config: JSON.stringify({
-                    title: 'Cron Jobs',
-                    icon: 'schedule',
-                    resource: 'CronJob',
-                    endpoint: '/api/cron-jobs',
+                    title: 'Batch Jobs',
+                    icon: 'queue',
+                    resource: 'BatchJob',
+                    endpoint: '/api/batch-jobs',
                     rowKey: 'id',
-                    createRoute: '/crud/cron-jobs/new',
-                    editRoute: '/crud/cron-jobs/:id',
-                    deleteMessage: 'Deseja realmente excluir o cron job "${row.name}"?',
-                    deleteSuccessMessage: 'Cron job excluído com sucesso!',
+                    createRoute: '/crud/batch-jobs/new',
+                    editRoute: '/crud/batch-jobs/:id',
+                    deleteMessage: 'Deseja realmente excluir o batch job "${row.name}"?',
+                    deleteSuccessMessage: 'Batch job excluído com sucesso!',
                     columns: [
                         {
                             name: 'name',
@@ -79,6 +79,15 @@ module.exports = {
                             badgeFalseLabel: 'Erro'
                         },
                         {
+                            name: 'totalExecutions',
+                            label: 'Total Execuções',
+                            align: 'center',
+                            field: 'totalExecutions',
+                            sortable: true,
+                            style: 'min-width: 120px',
+                            format: 'number'
+                        },
+                        {
                             name: 'actions',
                             label: 'Ações',
                             align: 'right',
@@ -89,13 +98,13 @@ module.exports = {
                                     type: 'api',
                                     icon: 'play_arrow',
                                     color: 'positive',
-                                    tooltip: 'Executar Cron Job',
+                                    tooltip: 'Executar Batch Job',
                                     method: 'post',
                                     endpoint: '${context.endpoint}/${row.id}/execute',
-                                    roles: ['cron.manter_cron_jobs'],
+                                    roles: ['batch.manter_batch_jobs'],
                                     onSuccess: {
                                         type: 'message',
-                                        message: 'Cron job executado com sucesso!',
+                                        message: 'Batch job executado com sucesso!',
                                         color: 'positive',
                                         icon: 'check'
                                     },
@@ -106,14 +115,14 @@ module.exports = {
                                     icon: 'delete',
                                     color: 'negative',
                                     tooltip: 'Excluir',
-                                    roles: ['cron.excluir_cron_jobs']
+                                    roles: ['batch.excluir_batch_jobs']
                                 }
                             ]
                         }
                     ],
                     layouts: [
                         {
-                            title: 'Informações do Cron Job',
+                            title: 'Informações do Batch Job',
                             rows: [
                                 {
                                     cols: [
@@ -122,10 +131,10 @@ module.exports = {
                                             fields: [
                                                 {
                                                     name: 'name',
-                                                    label: 'Nome do Cron Job *',
+                                                    label: 'Nome do Batch Job *',
                                                     type: 'text',
                                                     rules: ['val => !!val || "Nome é obrigatório"'],
-                                                    hint: 'Nome único para identificar o cron job'
+                                                    hint: 'Nome único para identificar o batch job'
                                                 }
                                             ]
                                         },
@@ -152,7 +161,7 @@ module.exports = {
                                                     label: 'Descrição',
                                                     type: 'textarea',
                                                     rows: 2,
-                                                    hint: 'Descrição do que o cron job faz'
+                                                    hint: 'Descrição do que o batch job faz'
                                                 }
                                             ]
                                         }
@@ -168,7 +177,7 @@ module.exports = {
                                                     label: 'Controller *',
                                                     type: 'text',
                                                     rules: ['val => !!val || "Controller é obrigatório"'],
-                                                    hint: 'Caminho do controller (ex: ../controllers/cronController)'
+                                                    hint: 'Caminho do controller (ex: @gestor/pessoa/controllers/batchController)'
                                                 }
                                             ]
                                         },
@@ -189,7 +198,7 @@ module.exports = {
                                 {
                                     cols: [
                                         {
-                                            width: '100%',
+                                            width: '50%',
                                             fields: [
                                                 {
                                                     name: 'cronExpression',
@@ -197,10 +206,26 @@ module.exports = {
                                                     type: 'text',
                                                     rules: [
                                                         'val => !!val || "Expressão cron é obrigatória"',
-                                                        'val => /^[0-9*\/\-, ]+$/.test(val) || "Formato inválido. Use: minuto hora dia mês dia-semana (ex: 0 0 * * *)"'
+                                                        'val => /^[0-9*\/\-, ]+$/.test(val) || "Formato inválido. Use: minuto hora dia mês dia-semana (ex: */2 * * * *)"'
                                                     ],
-                                                    hint: 'Formato: minuto hora dia mês dia-semana (ex: 0 0 * * * = diariamente à meia-noite)',
-                                                    placeholder: '0 0 * * *'
+                                                    hint: 'Formato: minuto hora dia mês dia-semana (ex: */2 * * * * = a cada 2 minutos)',
+                                                    placeholder: '*/2 * * * *'
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    cols: [
+                                        {
+                                            width: '100%',
+                                            fields: [
+                                                {
+                                                    name: 'parameters',
+                                                    label: 'Parâmetros (JSON)',
+                                                    type: 'textarea',
+                                                    rows: 4,
+                                                    hint: 'Parâmetros em formato JSON para passar ao método do controller (ex: {"pessoas": [{"nome": "João"}, {"nome": "Maria"}]})'
                                                 }
                                             ]
                                         }
@@ -209,7 +234,7 @@ module.exports = {
                             ]
                         },
                         {
-                            title: 'Informações de Execução',
+                            title: 'Estatísticas de Execução',
                             rows: [
                                 {
                                     cols: [
@@ -224,10 +249,6 @@ module.exports = {
                                                 }
                                             ]
                                         },
-                                    ]
-                                },
-                                {
-                                    cols: [
                                         {
                                             width: '50%',
                                             fields: [
@@ -235,6 +256,43 @@ module.exports = {
                                                     name: 'lastExecutionSuccess',
                                                     label: 'Última Execução Bem-sucedida',
                                                     type: 'boolean',
+                                                    readonly: true
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    cols: [
+                                        {
+                                            width: '33%',
+                                            fields: [
+                                                {
+                                                    name: 'totalExecutions',
+                                                    label: 'Total de Execuções',
+                                                    type: 'number',
+                                                    readonly: true
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            width: '33%',
+                                            fields: [
+                                                {
+                                                    name: 'totalSuccess',
+                                                    label: 'Total de Sucessos',
+                                                    type: 'number',
+                                                    readonly: true
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            width: '33%',
+                                            fields: [
+                                                {
+                                                    name: 'totalErrors',
+                                                    label: 'Total de Erros',
+                                                    type: 'number',
                                                     readonly: true
                                                 }
                                             ]
@@ -263,24 +321,24 @@ module.exports = {
                     fields: [
                         {
                             name: 'name',
-                            label: 'Nome do Cron Job',
+                            label: 'Nome do Batch Job',
                             type: 'text',
                             rules: ['val => !!val || "Nome é obrigatório"'],
-                            hint: 'Nome único para identificar o cron job'
+                            hint: 'Nome único para identificar o batch job'
                         },
                         {
                             name: 'description',
                             label: 'Descrição',
                             type: 'textarea',
                             rows: 2,
-                            hint: 'Descrição do que o cron job faz'
+                            hint: 'Descrição do que o batch job faz'
                         },
                         {
                             name: 'controller',
                             label: 'Controller',
                             type: 'text',
                             rules: ['val => !!val || "Controller é obrigatório"'],
-                            hint: 'Caminho do controller (ex: ../controllers/cronController)'
+                            hint: 'Caminho do controller (ex: @gestor/pessoa/controllers/batchController)'
                         },
                         {
                             name: 'method',
@@ -297,8 +355,15 @@ module.exports = {
                                 'val => !!val || "Expressão cron é obrigatória"',
                                 'val => /^[0-9*\/\-, ]+$/.test(val) || "Formato inválido"'
                             ],
-                            hint: 'Formato: minuto hora dia mês dia-semana (ex: 0 0 * * *)',
-                            placeholder: '0 0 * * *'
+                            hint: 'Formato: minuto hora dia mês dia-semana (ex: */2 * * * *)',
+                            placeholder: '*/2 * * * *'
+                        },
+                        {
+                            name: 'parameters',
+                            label: 'Parâmetros (JSON)',
+                            type: 'textarea',
+                            rows: 4,
+                            hint: 'Parâmetros em formato JSON para passar ao método do controller'
                         },
                         {
                             name: 'active',
@@ -311,33 +376,33 @@ module.exports = {
                 createdAt: new Date(),
                 updatedAt: new Date()
             }
-        ], {});
+        ], { ignoreDuplicates: true });
 
-        // 2. Create functions for CronJobs
+        // 2. Create functions for BatchJobs
         await queryInterface.bulkInsert('sys_functions', [
             {
-                name: 'cron.visualizar_cron_jobs',
-                title: 'Visualizar Cron Jobs',
+                name: 'batch.visualizar_batch_jobs',
+                title: 'Visualizar Batch Jobs',
                 createdAt: new Date(),
                 updatedAt: new Date()
             },
             {
-                name: 'cron.manter_cron_jobs',
-                title: 'Manter Cron Jobs',
+                name: 'batch.manter_batch_jobs',
+                title: 'Manter Batch Jobs',
                 createdAt: new Date(),
                 updatedAt: new Date()
             },
             {
-                name: 'cron.excluir_cron_jobs',
-                title: 'Excluir Cron Jobs',
+                name: 'batch.excluir_batch_jobs',
+                title: 'Excluir Batch Jobs',
                 createdAt: new Date(),
                 updatedAt: new Date()
             }
-        ], {});
+        ], { ignoreDuplicates: true });
 
         // 3. Get function IDs
         const functions = await queryInterface.sequelize.query(
-            `SELECT id, name FROM sys_functions WHERE name LIKE 'cron.%'`,
+            `SELECT id, name FROM sys_functions WHERE name LIKE 'batch.%'`,
             { type: queryInterface.sequelize.QueryTypes.SELECT }
         );
 
@@ -347,111 +412,42 @@ module.exports = {
         });
 
         // 4. Assign functions to ADMIN role (id: 1) for System 1
-        const roleFunctionInserts = [
-            {
-                id_role: 1,
-                id_function: functionMap['cron.visualizar_cron_jobs'],
-                createdAt: new Date(),
-                updatedAt: new Date()
-            },
-            {
-                id_role: 1,
-                id_function: functionMap['cron.manter_cron_jobs'],
-                createdAt: new Date(),
-                updatedAt: new Date()
-            },
-            {
-                id_role: 1,
-                id_function: functionMap['cron.excluir_cron_jobs'],
-                createdAt: new Date(),
-                updatedAt: new Date()
-            }
-        ];
+        if (functionMap['batch.visualizar_batch_jobs'] && functionMap['batch.manter_batch_jobs'] && functionMap['batch.excluir_batch_jobs']) {
+            await queryInterface.bulkInsert('sys_roles_functions', [
+                {
+                    id_role: 1,
+                    id_function: functionMap['batch.visualizar_batch_jobs'],
+                    createdAt: new Date(),
+                    updatedAt: new Date()
+                },
+                {
+                    id_role: 1,
+                    id_function: functionMap['batch.manter_batch_jobs'],
+                    createdAt: new Date(),
+                    updatedAt: new Date()
+                },
+                {
+                    id_role: 1,
+                    id_function: functionMap['batch.excluir_batch_jobs'],
+                    createdAt: new Date(),
+                    updatedAt: new Date()
+                }
+            ], { ignoreDuplicates: true });
+        }
 
-        await queryInterface.bulkInsert('sys_roles_functions', roleFunctionInserts, {});
-
-        // 5. Insert default Cron Jobs for system module
-        await queryInterface.bulkInsert('sys_cron_jobs', [
-            {
-                name: 'system-every-minute',
-                description: 'Exemplo de cron job do módulo system executado a cada minuto',
-                controller: '@gestor/system/controllers/cronController',
-                method: 'runEveryMinute',
-                cronExpression: '* * * * *',
-                active: true,
-                lastExecution: null,
-                lastExecutionSuccess: null,
-                lastExecutionLog: null,
-                createdAt: new Date(),
-                updatedAt: new Date()
-            },
-            {
-                name: 'system-every-5-minutes',
-                description: 'Exemplo de cron job do módulo system executado a cada 5 minutos',
-                controller: '@gestor/system/controllers/cronController',
-                method: 'runEveryFiveMinutes',
-                cronExpression: '*/5 * * * *',
-                active: true,
-                lastExecution: null,
-                lastExecutionSuccess: null,
-                lastExecutionLog: null,
-                createdAt: new Date(),
-                updatedAt: new Date()
-            },
-            {
-                name: 'system-batch-processing',
-                description: 'Cron job que executa todos os batch jobs cadastrados no sistema',
-                controller: '@gestor/system/controllers/batchController',
-                method: 'executeBatchJobs',
-                cronExpression: '* * * * *',
-                active: true,
-                lastExecution: null,
-                lastExecutionSuccess: null,
-                lastExecutionLog: null,
-                createdAt: new Date(),
-                updatedAt: new Date()
-            },
-            {
-                name: 'system-queue-processing',
-                description: 'Cron job que processa todas as filas ativas do sistema',
-                controller: '@gestor/system/controllers/batchController',
-                method: 'processQueues',
-                cronExpression: '* * * * *',
-                active: true,
-                lastExecution: null,
-                lastExecutionSuccess: null,
-                lastExecutionLog: null,
-                createdAt: new Date(),
-                updatedAt: new Date()
-            },
-            {
-                name: 'system-mailer-add-to-queue',
-                description: 'Cron job que adiciona 20 emails pendentes à fila a cada 5 minutos',
-                controller: '@gestor/system/controllers/mailerController',
-                method: 'addEmailsToQueue',
-                cronExpression: '*/5 * * * *',
-                active: true,
-                lastExecution: null,
-                lastExecutionSuccess: null,
-                lastExecutionLog: null,
-                createdAt: new Date(),
-                updatedAt: new Date()
-            }
-        ], {});
-
-        // 6. Get max order from menu items in Administration menu (id: 1)
+        // 5. Get max order from menu items in Administration menu (id: 1)
         const maxOrderResult = await queryInterface.sequelize.query(
             `SELECT MAX(\`order\`) as maxOrder FROM sys_menu_items WHERE id_menu = 1`,
             { type: queryInterface.sequelize.QueryTypes.SELECT }
         );
         const maxOrder = maxOrderResult[0]?.maxOrder || 0;
 
-        // 7. Create menu item for CronJobs in Administration menu (id: 1)
+        // 6. Create menu item for BatchJobs in Administration menu (id: 1)
         await queryInterface.bulkInsert('sys_menu_items', [
             {
-                name: 'Cron Jobs',
-                icon: 'schedule',
-                route: '/crud/cron-jobs',
+                name: 'Batch Jobs',
+                icon: 'queue',
+                route: '/crud/batch-jobs',
                 target_blank: false,
                 id_menu: 1,
                 id_system: 1,
@@ -461,16 +457,16 @@ module.exports = {
                 createdAt: new Date(),
                 updatedAt: new Date()
             }
-        ], {});
+        ], { ignoreDuplicates: true });
     },
 
     async down(queryInterface, Sequelize) {
         // Remove in reverse order
-        await queryInterface.bulkDelete('sys_menu_items', { route: '/crud/cron-jobs' }, {});
+        await queryInterface.bulkDelete('sys_menu_items', { route: '/crud/batch-jobs' }, {});
 
         // Get function IDs before deleting
         const functions = await queryInterface.sequelize.query(
-            `SELECT id FROM sys_functions WHERE name LIKE 'cron.%'`,
+            `SELECT id FROM sys_functions WHERE name LIKE 'batch.%'`,
             { type: queryInterface.sequelize.QueryTypes.SELECT }
         );
         const functionIds = functions.map(f => f.id);
@@ -482,12 +478,9 @@ module.exports = {
         }
 
         await queryInterface.bulkDelete('sys_functions', {
-            name: { [Sequelize.Op.like]: 'cron.%' }
+            name: { [Sequelize.Op.like]: 'batch.%' }
         }, {});
-        await queryInterface.bulkDelete('sys_cruds', { name: 'cron-jobs' }, {});
-        await queryInterface.bulkDelete('sys_cron_jobs', {
-            name: { [Sequelize.Op.in]: ['system-every-minute', 'system-every-5-minutes'] }
-        }, {});
+        await queryInterface.bulkDelete('sys_cruds', { name: 'batch-jobs' }, {});
     }
 };
 

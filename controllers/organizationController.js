@@ -7,6 +7,9 @@ function getDb() {
   return modelsLoader.loadModels();
 }
 
+// Helper para logs
+const logHelper = require('../utils/logHelper');
+
 exports.getAllOrganizations = async (req, res) => {
   try {
     const db = getDb();
@@ -133,6 +136,9 @@ exports.updateOrganization = async (req, res) => {
       return res.status(404).json({ message: 'Organization not found' });
     }
     
+    // Salvar dados antigos para log
+    const oldData = organization.get({ plain: true });
+    
     // Atualizar nome
     organization.name = name;
     await organization.save();
@@ -154,6 +160,12 @@ exports.updateOrganization = async (req, res) => {
     });
     
     const organizationData = organizationWithUsers.get({ plain: true });
+    
+    // Registrar log de atualização
+    await logHelper.logUpdate(req, 'Organization', organizationWithUsers, oldData, {
+      userIds: userIds
+    });
+    
     res.json(organizationData);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -169,7 +181,15 @@ exports.deleteOrganization = async (req, res) => {
     if (!organization) {
       return res.status(404).json({ message: 'Organization not found' });
     }
+    
+    // Salvar dados antes de excluir para log
+    const organizationData = organization.get({ plain: true });
+    
     await organization.destroy();
+    
+    // Registrar log de exclusão
+    await logHelper.logDelete(req, 'Organization', organizationData);
+    
     res.status(204).json({ message: 'Organization deleted' });
   } catch (error) {
     res.status(500).json({ message: error.message });

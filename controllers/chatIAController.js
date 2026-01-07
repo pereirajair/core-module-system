@@ -225,7 +225,7 @@ async function createSeederInternal(params) {
     // Determinar caminho baseado no módulo
     let seedersPath;
     if (module) {
-      const { loadModules } = require('../../../utils/moduleLoader');
+      const { loadModules } = require('../utils/moduleLoader');
       const modules = loadModules();
       const moduleExists = modules.find(m => m.name === module && m.enabled);
       
@@ -836,7 +836,7 @@ const availableFunctions = {
       // Determinar caminho baseado no módulo
       let migrationsPath;
       if (module) {
-        const { loadModules } = require('../../../utils/moduleLoader');
+        const { loadModules } = require('../utils/moduleLoader');
         const modules = loadModules();
         const moduleExists = modules.find(m => m.name === module && m.enabled);
         
@@ -1198,8 +1198,10 @@ const availableFunctions = {
   runMigration: async (params) => {
     try {
       const { execSync } = require('child_process');
+      // Executar no diretório do módulo system onde está o package.json
+      const systemPath = path.join(__dirname, '..');
       const result = execSync('npm run db:migrate', { 
-        cwd: path.join(__dirname, '../..'),
+        cwd: systemPath,
         encoding: 'utf8'
       });
       return { 
@@ -1511,7 +1513,7 @@ const availableFunctions = {
         }
       } catch (e) {
         // Se não disponível, buscar manualmente
-        const { loadModules } = require('../../../utils/moduleLoader');
+        const { loadModules } = require('../utils/moduleLoader');
         const modules = loadModules();
         const modelsPath = path.join(__dirname, '../../../models');
         
@@ -1657,7 +1659,7 @@ const availableFunctions = {
     // Se módulo especificado, verificar se existe ou criar
     let targetModule = module;
     if (module) {
-      const { loadModules } = require('../../../utils/moduleLoader');
+      const { loadModules } = require('../utils/moduleLoader');
       const modules = loadModules();
       const moduleExists = modules.find(m => m.name === module && m.enabled);
       
@@ -2213,8 +2215,10 @@ const availableFunctions = {
   runSeeder: async (params) => {
     try {
       const { execSync } = require('child_process');
+      // Executar no diretório do módulo system onde está o package.json
+      const systemPath = path.join(__dirname, '..');
       const result = execSync('npm run db:seed', { 
-        cwd: path.join(__dirname, '../..'),
+        cwd: systemPath,
         encoding: 'utf8'
       });
       return { 

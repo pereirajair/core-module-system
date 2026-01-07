@@ -6,6 +6,9 @@ function getDb() {
   return modelsLoader.loadModels();
 }
 
+// Helper para logs
+const logHelper = require('../utils/logHelper');
+
 exports.getAllCruds = async (req, res) => {
   try {
     const db = getDb();
@@ -150,6 +153,9 @@ exports.updateCrud = async (req, res) => {
       return res.status(404).json({ message: 'CRUD não encontrado' });
     }
 
+    // Salvar dados antigos para log
+    const oldData = crud.get({ plain: true });
+
     // Validar se o config é um objeto válido
     if (config !== undefined) {
       let configObj;
@@ -169,6 +175,10 @@ exports.updateCrud = async (req, res) => {
     if (active !== undefined) crud.active = active;
 
     await crud.save();
+    
+    // Registrar log de atualização
+    await logHelper.logUpdate(req, 'Crud', crud, oldData);
+    
     res.json(crud);
   } catch (error) {
     if (error.name === 'SequelizeUniqueConstraintError') {
@@ -189,7 +199,14 @@ exports.deleteCrud = async (req, res) => {
       return res.status(404).json({ message: 'CRUD não encontrado' });
     }
 
+    // Salvar dados antes de excluir para log
+    const crudData = crud.get({ plain: true });
+    
     await crud.destroy();
+    
+    // Registrar log de exclusão
+    await logHelper.logDelete(req, 'Crud', crudData);
+    
     res.json({ message: 'CRUD excluído com sucesso' });
   } catch (error) {
     res.status(500).json({ message: error.message });

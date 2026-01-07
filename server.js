@@ -27,6 +27,7 @@ class GestorServer {
     this.db = null;
     this.systemModule = null;
     this.cronManager = null;
+    this.batchManager = null;
   }
 
   /**
@@ -397,6 +398,9 @@ class GestorServer {
     this.app.use('/api/chatia', routes.chatIA);
     this.app.use('/api/mcp', routes.mcp);
     this.app.use('/api/cron-jobs', routes.cronJob);
+    this.app.use('/api/batch-jobs', routes.batchJob);
+    this.app.use('/api/queues', routes.queue);
+    this.app.use('/api/mailers', routes.mailer);
     this.app.use('/api/logs', routes.logs);
   }
 
@@ -504,6 +508,17 @@ class GestorServer {
       // Não interrompe o servidor, apenas registra o erro
       this.cronManager = null;
     }
+
+    // Inicializar Batch Manager também
+    try {
+      console.log('📦 Inicializando gerenciador de Batch Jobs...');
+      this.batchManager = require('./utils/batchManager');
+      await this.batchManager.initialize(this.db);
+      console.log('✅ Gerenciador de Batch Jobs inicializado com sucesso!');
+    } catch (error) {
+      console.error('❌ Erro ao inicializar Batch Manager:', error);
+      this.batchManager = null;
+    }
   }
 
   /**
@@ -553,6 +568,16 @@ class GestorServer {
         console.log('✅ Cron Jobs limpos');
       } catch (error) {
         console.error('❌ Erro ao limpar Cron Jobs:', error);
+      }
+    }
+
+    // Limpar batch jobs
+    if (this.batchManager) {
+      try {
+        this.batchManager.clearAllJobs();
+        console.log('✅ Batch Jobs limpos');
+      } catch (error) {
+        console.error('❌ Erro ao limpar Batch Jobs:', error);
       }
     }
     

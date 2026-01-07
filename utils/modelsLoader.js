@@ -56,6 +56,9 @@ function loadModels() {
     // Menu deve vir antes de MenuItems
     if (a === 'Menu' && b === 'MenuItems') return -1;
     if (a === 'MenuItems' && b === 'Menu') return 1;
+    // Queue deve vir antes de QueueItem
+    if (a === 'Queue' && b === 'QueueItem') return -1;
+    if (a === 'QueueItem' && b === 'Queue') return 1;
     return 0;
   });
   
@@ -64,8 +67,26 @@ function loadModels() {
       try {
         db[modelName].associate(db);
       } catch (error) {
-        console.error(`❌ Erro ao associar modelo ${modelName}:`, error.message);
-        throw error;
+        // Se houver erro de associação duplicada, limpar e tentar novamente
+        if (error.message && error.message.includes('Aliased associations must have unique aliases')) {
+          console.warn(`⚠️  Conflito de alias detectado para ${modelName}. Limpando associações e tentando novamente...`);
+          // Limpar todas as associações do modelo
+          if (db[modelName].associations) {
+            const assocNames = Object.keys(db[modelName].associations);
+            assocNames.forEach(assocName => {
+              try {
+                delete db[modelName].associations[assocName];
+              } catch (e) {
+                // Ignorar erros ao deletar
+              }
+            });
+          }
+          // Tentar novamente
+          db[modelName].associate(db);
+        } else {
+          console.error(`❌ Erro ao associar modelo ${modelName}:`, error.message);
+          throw error;
+        }
       }
     }
   });

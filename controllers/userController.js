@@ -6,6 +6,9 @@ function getDb() {
   return modelsLoader.loadModels();
 }
 
+// Helper para logs
+const logHelper = require('../utils/logHelper');
+
 exports.getUserSystems = async (req, res) => {
   try {
     const db = getDb();
@@ -217,6 +220,9 @@ exports.updateUser = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
+    // Salvar dados antigos para log
+    const oldData = user.get({ plain: true });
+
     // Atualizar dados básicos
     user.name = name;
     user.email = email;
@@ -250,6 +256,13 @@ exports.updateUser = async (req, res) => {
     });
 
     const userData = userWithAssociations.get({ plain: true });
+    
+    // Registrar log de atualização
+    await logHelper.logUpdate(req, 'User', userWithAssociations, oldData, {
+      roleIds: roleIds,
+      organizationIds: organizationIds
+    });
+    
     res.json(userData);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -265,7 +278,15 @@ exports.deleteUser = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
+    
+    // Salvar dados antes de excluir para log
+    const userData = user.get({ plain: true });
+    
     await user.destroy();
+    
+    // Registrar log de exclusão
+    await logHelper.logDelete(req, 'User', userData);
+    
     res.status(204).json({ message: 'User deleted' });
   } catch (error) {
     res.status(500).json({ message: error.message });

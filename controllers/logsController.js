@@ -84,12 +84,10 @@ async function getAllLogs(req, res) {
 
     res.json({
       data: rows,
-      pagination: {
-        page,
-        limit,
-        total: count,
-        totalPages: Math.ceil(count / limit)
-      }
+      count,
+      page,
+      limit,
+      totalPages: Math.ceil(count / limit)
     });
   } catch (error) {
     console.error('Erro ao listar logs:', error);

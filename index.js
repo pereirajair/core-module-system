@@ -39,6 +39,9 @@ module.exports.routes = {
   mcp: require('./routes/mcp'),
   module: require('./routes/module'),
   cronJob: require('./routes/cronJob'),
+  batchJob: require('./routes/batchJob'),
+  queue: require('./routes/queue'),
+  mailer: require('./routes/mailer'),
   logs: require('./routes/logs')
 };
 

@@ -6,6 +6,9 @@ function getDb() {
   return modelsLoader.loadModels();
 }
 
+// Helper para logs
+const logHelper = require('../utils/logHelper');
+
 exports.getAllSystems = async (req, res) => {
   try {
     const db = getDb();
@@ -122,6 +125,10 @@ exports.updateSystem = async (req, res) => {
     if (!system) {
       return res.status(404).json({ message: 'System not found' });
     }
+    
+    // Salvar dados antigos para log
+    const oldData = system.get({ plain: true });
+    
     if (name !== undefined) system.name = name;
     if (sigla !== undefined) system.sigla = sigla;
     if (icon !== undefined) system.icon = icon;
@@ -131,6 +138,10 @@ exports.updateSystem = async (req, res) => {
     if (secondaryColor !== undefined) system.secondaryColor = secondaryColor;
     if (textColor !== undefined) system.textColor = textColor;
     await system.save();
+    
+    // Registrar log de atualização
+    await logHelper.logUpdate(req, 'System', system, oldData);
+    
     res.json(system);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -146,7 +157,15 @@ exports.deleteSystem = async (req, res) => {
     if (!system) {
       return res.status(404).json({ message: 'System not found' });
     }
+    
+    // Salvar dados antes de excluir para log
+    const systemData = system.get({ plain: true });
+    
     await system.destroy();
+    
+    // Registrar log de exclusão
+    await logHelper.logDelete(req, 'System', systemData);
+    
     res.status(204).json({ message: 'System deleted' });
   } catch (error) {
     res.status(500).json({ message: error.message });
