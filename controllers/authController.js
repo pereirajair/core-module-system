@@ -9,7 +9,7 @@ function getDb() {
 }
 
 exports.login = async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, organizationId } = req.body;
 
   if (!email) {
     return res.status(400).json({ message: 'Email not informed' });
@@ -41,6 +41,11 @@ exports.login = async (req, res) => {
               attributes: ['id', 'name', 'sigla', 'logo', 'primaryColor', 'secondaryColor', 'textColor']
             }
           ]
+        },
+        {
+          model: db.Organization,
+          through: { attributes: [] },
+          attributes: ['id', 'name']
         }
       ]
     });
@@ -56,6 +61,120 @@ exports.login = async (req, res) => {
 
     if (!isMatch) {
       return res.status(401).json({ message: 'Invalid email or password' });
+    }
+
+    const roles = user.Roles.map(role => role.name);
+    
+    // Coletar todas as funções do usuário através de suas roles
+    const userFunctions = new Set();
+    user.Roles.forEach(role => {
+      role.Functions.forEach(func => {
+        userFunctions.add(func.name);
+      });
+    });
+
+    // Determinar id_organization: usar o enviado no body, ou a primeira organização do usuário
+    let id_organization = null;
+    if (organizationId) {
+      // Validar se o usuário tem acesso à organização solicitada
+      const hasAccess = user.Organizations && user.Organizations.some(org => org.id === parseInt(organizationId));
+      if (hasAccess) {
+        id_organization = parseInt(organizationId);
+      }
+    }
+    
+    // Se não foi enviado ou não tem acesso, usar a primeira organização
+    if (!id_organization && user.Organizations && user.Organizations.length > 0) {
+      id_organization = user.Organizations[0].id;
+    }
+
+    // Buscar o sistema através da primeira role do usuário
+    let systemInfo = null;
+    if (user.Roles && user.Roles.length > 0) {
+      const firstRole = user.Roles[0];
+      if (firstRole.System) {
+        systemInfo = {
+          id: firstRole.System.id,
+          name: firstRole.System.name,
+          sigla: firstRole.System.sigla,
+          logo: firstRole.System.logo,
+          primaryColor: firstRole.System.primaryColor,
+          secondaryColor: firstRole.System.secondaryColor,
+          textColor: firstRole.System.textColor
+        };
+      }
+    }
+
+    const token = jwt.sign({ 
+      id: user.id, 
+      name: user.name,
+      email: user.email, 
+      roles: roles,
+      functions: Array.from(userFunctions),
+      id_organization: id_organization
+    }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+    res.json({ token, system: systemInfo });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.logout = (req, res) => {
+  // In a token-based authentication system, logout is typically handled client-side
+  // by discarding the token. However, you might want to blacklist tokens on the server
+  // for security reasons (e.g., if a token is compromised).
+  // For this basic implementation, we'll just send a success message.
+  res.json({ message: 'Logged out successfully' });
+};
+
+exports.changeOrganization = async (req, res) => {
+  try {
+    const db = getDb();
+    const User = db.User;
+    const { organizationId } = req.body;
+    const userId = req.user.id;
+
+    if (!organizationId) {
+      return res.status(400).json({ message: 'Organization ID is required' });
+    }
+
+    // Buscar usuário com suas organizações e roles
+    const user = await User.findByPk(userId, {
+      include: [
+        {
+          model: db.Organization,
+          through: { attributes: [] },
+          attributes: ['id', 'name']
+        },
+        {
+          model: db.Role,
+          as: 'Roles',
+          attributes: ['name', 'id_system'],
+          through: { attributes: [] },
+          include: [
+            {
+              model: db.Function,
+              through: { attributes: [] },
+              attributes: ['name']
+            },
+            {
+              model: db.System,
+              attributes: ['id', 'name', 'sigla', 'logo', 'primaryColor', 'secondaryColor', 'textColor']
+            }
+          ]
+        }
+      ]
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Validar se o usuário tem acesso à organização solicitada
+    const hasAccess = user.Organizations && user.Organizations.some(org => org.id === parseInt(organizationId));
+    if (!hasAccess) {
+      return res.status(403).json({ message: 'User does not have access to this organization' });
     }
 
     const roles = user.Roles.map(role => role.name);
@@ -85,26 +204,20 @@ exports.login = async (req, res) => {
       }
     }
 
+    // Gerar novo token com a nova organização
     const token = jwt.sign({ 
       id: user.id, 
       name: user.name,
       email: user.email, 
       roles: roles,
-      functions: Array.from(userFunctions)
+      functions: Array.from(userFunctions),
+      id_organization: parseInt(organizationId)
     }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
     res.json({ token, system: systemInfo });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
-};
-
-exports.logout = (req, res) => {
-  // In a token-based authentication system, logout is typically handled client-side
-  // by discarding the token. However, you might want to blacklist tokens on the server
-  // for security reasons (e.g., if a token is compromised).
-  // For this basic implementation, we'll just send a success message.
-  res.json({ message: 'Logged out successfully' });
 };
 
 exports.impersonate = async (req, res) => {
@@ -174,6 +287,11 @@ exports.impersonate = async (req, res) => {
               attributes: ['id', 'name', 'sigla', 'logo', 'primaryColor', 'secondaryColor', 'textColor']
             }
           ]
+        },
+        {
+          model: db.Organization,
+          through: { attributes: [] },
+          attributes: ['id', 'name']
         }
       ]
     });
@@ -192,6 +310,12 @@ exports.impersonate = async (req, res) => {
       });
     });
 
+    // Determinar id_organization do usuário alvo (primeira organização disponível)
+    let id_organization = null;
+    if (targetUser.Organizations && targetUser.Organizations.length > 0) {
+      id_organization = targetUser.Organizations[0].id;
+    }
+
     // Criar token para o usuário alvo, mas incluir informação de quem está impersonando
     const token = jwt.sign({ 
       id: targetUser.id,
@@ -199,6 +323,7 @@ exports.impersonate = async (req, res) => {
       email: targetUser.email, 
       roles: roles,
       functions: Array.from(targetUserFunctions),
+      id_organization: id_organization,
       impersonatedBy: currentUserId,
       originalUserId: currentUserId
     }, process.env.JWT_SECRET, { expiresIn: '1h' });

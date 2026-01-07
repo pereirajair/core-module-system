@@ -12,13 +12,13 @@ function getGestorSys() {
 /**
  * Extrai informações do usuário da requisição
  * @param {Object} req - Objeto de requisição do Express
- * @returns {Object} Objeto com userId e organizationId
+ * @returns {Object} Objeto com userId e id_organization
  */
 function getUserInfo(req) {
   const user = req.user || {};
   return {
     userId: user.id || null,
-    organizationId: user.organizationId || null,
+    organizationId: user.id_organization || null, // Usar id_organization do token
     systemId: user.systemId || null
   };
 }

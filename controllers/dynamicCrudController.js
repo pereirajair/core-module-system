@@ -1,11 +1,53 @@
 // Importar db dinamicamente para garantir que sempre tenha os modelos mais recentes
 const { Op } = require('sequelize');
 const { updateHasManyAssociations } = require('../utils/associationUtils');
+const logHelper = require('../utils/logHelper');
 
 // Lazy load db para evitar problemas de ordem de carregamento
 function getDb() {
   const modelsLoader = require('../utils/modelsLoader');
   return modelsLoader.loadModels();
+}
+
+/**
+ * Verifica se uma model tem relacionamento com Organization
+ * @param {Object} Model - Model do Sequelize
+ * @returns {boolean} - true se tiver relacionamento com Organization
+ */
+function hasOrganizationRelation(Model) {
+  if (!Model || !Model.associations) return false;
+  
+  // Verificar se tem associação belongsTo com Organization
+  for (const assocName in Model.associations) {
+    const association = Model.associations[assocName];
+    if (association && association.associationType === 'BelongsTo') {
+      const targetModel = association.target;
+      if (targetModel && (targetModel.name === 'Organization' || targetModel.tableName === 'sys_organizations')) {
+        return true;
+      }
+    }
+  }
+  
+  // Verificar se tem campo id_organization nos atributos
+  if (Model.rawAttributes && Model.rawAttributes.id_organization) {
+    return true;
+  }
+  
+  return false;
+}
+
+/**
+ * Obtém o id_organization do token do usuário
+ * @param {Object} req - Objeto de requisição
+ * @returns {number|null} - ID da organização ou null
+ */
+function getOrganizationId(req) {
+  // Obter id_organization do token (req.user)
+  if (req.user && req.user.id_organization) {
+    return parseInt(req.user.id_organization);
+  }
+  
+  return null;
 }
 
 // Função para recarregar db quando necessário
@@ -258,6 +300,12 @@ async function handleDynamicCrud(req, res, next) {
       return includes;
     }
 
+    // Obter id_organization da requisição
+    const organizationId = getOrganizationId(req);
+    
+    // Verificar se a model tem relacionamento com Organization
+    const hasOrgRelation = hasOrganizationRelation(Model);
+
     // Executar operação baseada no método HTTP
     switch (method) {
       case 'GET':
@@ -265,6 +313,11 @@ async function handleDynamicCrud(req, res, next) {
           // GET /api/resource/:id
           const includes = prepareIncludes(Model, relations);
           const findOptions = { where: { id: req.params.id } };
+
+          // Adicionar filtro de id_organization se a model tiver relacionamento
+          if (hasOrgRelation && organizationId) {
+            findOptions.where.id_organization = organizationId;
+          }
 
           if (includes.length > 0) {
             findOptions.include = includes;
@@ -277,6 +330,15 @@ async function handleDynamicCrud(req, res, next) {
               errors: [{ path: req.path, message: 'not found' }]
             });
           }
+          
+          // Validar se o item pertence à organização (segurança adicional)
+          if (hasOrgRelation && organizationId && item.id_organization !== organizationId) {
+            return res.status(403).json({
+              message: 'Acesso negado: item não pertence à organização atual',
+              errors: [{ path: req.path, message: 'forbidden' }]
+            });
+          }
+          
           return res.json(item);
         } else {
           // GET /api/resource (listar com paginação, filtros e ordenação)
@@ -293,6 +355,24 @@ async function handleDynamicCrud(req, res, next) {
           const descending = descParam === 'true' || descParam === '1';
 
           const where = {};
+          
+          // Adicionar filtro de id_organization se a model tiver relacionamento
+          if (hasOrgRelation && organizationId) {
+            where.id_organization = organizationId;
+          }
+          
+          // Adicionar filtros customizados via query params (ex: ?state_id=1)
+          // Ignorar parâmetros de paginação, busca e ordenação
+          const ignoredParams = ['page', 'limit', 'offset', 'filter', 'searchFields', 'sortBy', 'desc', 'descending', 'id_organization', 'organizationId'];
+          Object.keys(req.query).forEach(key => {
+            if (!ignoredParams.includes(key) && req.query[key] !== undefined && req.query[key] !== null && req.query[key] !== '') {
+              // Verificar se o campo existe na model
+              if (Model.rawAttributes && Model.rawAttributes[key]) {
+                where[key] = req.query[key];
+              }
+            }
+          });
+          
           if (filter) {
             // Obter campos pesquisáveis do query param ou usar padrão
             let searchFields = [];
@@ -392,12 +472,49 @@ async function handleDynamicCrud(req, res, next) {
         // POST /api/resource (criar)
         const transaction = await db.sequelize.transaction();
         try {
-          const newItem = await Model.create(req.body, { transaction });
+          // Preparar dados para criação
+          const createData = { ...req.body };
+          
+          // Adicionar id_organization automaticamente se a model tiver relacionamento
+          if (hasOrgRelation && organizationId) {
+            // Se não foi enviado no body, adicionar automaticamente
+            if (!createData.id_organization) {
+              createData.id_organization = organizationId;
+            }
+            // Se foi enviado, validar que é o mesmo da sessão (segurança)
+            else if (createData.id_organization !== organizationId) {
+              await transaction.rollback();
+              return res.status(403).json({
+                message: 'Não é permitido criar item para outra organização',
+                errors: [{ path: req.path, message: 'forbidden' }]
+              });
+            }
+          }
+          
+          const newItem = await Model.create(createData, { transaction });
 
           // Processar associações dinamicamente
           await updateHasManyAssociations(newItem, req.body, transaction);
 
           await transaction.commit();
+
+          // Registrar log de criação (opcional, mas recomendado)
+          const GestorSys = require('../utils/gestorSys');
+          const userInfo = logHelper.getUserInfo(req);
+          await GestorSys.logNormal(
+            'system',
+            `${modelName} criado (ID: ${newItem.id})`,
+            {
+              userId: userInfo.userId,
+              organizationId: userInfo.organizationId,
+              systemId: userInfo.systemId,
+              context: {
+                resource: modelName,
+                recordId: newItem.id,
+                recordData: newItem.get ? newItem.get({ plain: true }) : newItem
+              }
+            }
+          );
 
           return res.status(201).json(newItem);
         } catch (error) {
@@ -411,7 +528,13 @@ async function handleDynamicCrud(req, res, next) {
         // PUT/PATCH /api/resource/:id (atualizar)
         const transaction = await db.sequelize.transaction();
         try {
-          const itemToUpdate = await Model.findByPk(req.params.id);
+          // Buscar item com filtro de id_organization se aplicável
+          const findOptions = { where: { id: req.params.id } };
+          if (hasOrgRelation && organizationId) {
+            findOptions.where.id_organization = organizationId;
+          }
+          
+          const itemToUpdate = await Model.findOne(findOptions);
           if (!itemToUpdate) {
             await transaction.rollback();
             return res.status(404).json({
@@ -419,12 +542,36 @@ async function handleDynamicCrud(req, res, next) {
               errors: [{ path: req.path, message: 'not found' }]
             });
           }
-          await itemToUpdate.update(req.body, { transaction });
+          
+          // Preparar dados para atualização
+          const updateData = { ...req.body };
+          
+          // Validar id_organization se a model tiver relacionamento
+          if (hasOrgRelation && organizationId) {
+            // Se tentar alterar id_organization, não permitir
+            if (updateData.id_organization !== undefined && updateData.id_organization !== organizationId) {
+              await transaction.rollback();
+              return res.status(403).json({
+                message: 'Não é permitido alterar a organização do item',
+                errors: [{ path: req.path, message: 'forbidden' }]
+              });
+            }
+            // Garantir que id_organization seja mantido
+            updateData.id_organization = organizationId;
+          }
+          
+          // Salvar dados antigos para log
+          const oldData = itemToUpdate.get({ plain: true });
+          
+          await itemToUpdate.update(updateData, { transaction });
 
           // Processar associações dinamicamente
           await updateHasManyAssociations(itemToUpdate, req.body, transaction);
 
           await transaction.commit();
+
+          // Registrar log de atualização
+          await logHelper.logUpdate(req, modelName, itemToUpdate, oldData);
 
           return res.json(itemToUpdate);
         } catch (error) {
@@ -435,14 +582,29 @@ async function handleDynamicCrud(req, res, next) {
 
       case 'DELETE':
         // DELETE /api/resource/:id (excluir)
-        const itemToDelete = await Model.findByPk(req.params.id);
+        const findOptionsDelete = { where: { id: req.params.id } };
+        
+        // Adicionar filtro de id_organization se a model tiver relacionamento
+        if (hasOrgRelation && organizationId) {
+          findOptionsDelete.where.id_organization = organizationId;
+        }
+        
+        const itemToDelete = await Model.findOne(findOptionsDelete);
         if (!itemToDelete) {
           return res.status(404).json({
             message: 'Item não encontrado',
             errors: [{ path: req.path, message: 'not found' }]
           });
         }
+        
+        // Salvar dados antes de excluir para log
+        const itemData = itemToDelete.get({ plain: true });
+        
         await itemToDelete.destroy();
+        
+        // Registrar log de exclusão
+        await logHelper.logDelete(req, modelName, itemData);
+        
         return res.json({ message: 'Item excluído com sucesso' });
 
       default:
