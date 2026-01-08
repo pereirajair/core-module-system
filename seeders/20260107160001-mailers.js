@@ -12,7 +12,7 @@ module.exports = {
                 resource: 'Mailer',
                 endpoint: '/api/mailers',
                 active: true,
-                isSystem: false,
+                isSystem: true,
                 config: JSON.stringify({
                     title: 'Emails',
                     icon: 'email',

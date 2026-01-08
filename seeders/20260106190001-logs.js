@@ -12,7 +12,7 @@ module.exports = {
                 resource: 'Logs',
                 endpoint: '/api/logs',
                 active: true,
-                isSystem: false,
+                isSystem: true,
                 config: JSON.stringify({
                     title: 'Logs do Sistema',
                     icon: 'description',

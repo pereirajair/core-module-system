@@ -12,7 +12,7 @@ module.exports = {
                 resource: 'BatchJob',
                 endpoint: '/api/batch-jobs',
                 active: true,
-                isSystem: false,
+                isSystem: true,
                 config: JSON.stringify({
                     title: 'Batch Jobs',
                     icon: 'queue',

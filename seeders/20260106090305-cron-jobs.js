@@ -12,7 +12,7 @@ module.exports = {
                 resource: 'CronJob',
                 endpoint: '/api/cron-jobs',
                 active: true,
-                isSystem: false,
+                isSystem: true,
                 config: JSON.stringify({
                     title: 'Cron Jobs',
                     icon: 'schedule',

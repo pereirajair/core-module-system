@@ -83,7 +83,7 @@ module.exports = {
                 resource: 'settings',
                 endpoint: '/api/settings',
                 active: true,
-                isSystem: false,
+                isSystem: true,
                 config: JSON.stringify({
                     title: 'Preferências',
                     icon: 'settings',

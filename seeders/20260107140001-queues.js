@@ -12,7 +12,7 @@ module.exports = {
                 resource: 'Queue',
                 endpoint: '/api/queues',
                 active: true,
-                isSystem: false,
+                isSystem: true,
                 config: JSON.stringify({
                     title: 'Filas',
                     icon: 'list_alt',

@@ -153,6 +153,25 @@ exports.updateCrud = async (req, res) => {
       return res.status(404).json({ message: 'CRUD não encontrado' });
     }
 
+    // Verificar se é interface de sistema
+    const isSystem = Boolean(crud.isSystem === true || crud.isSystem === 1);
+    
+    // Se for sistema, verificar DEV_MODE e se usuário é admin
+    if (isSystem) {
+      const DEV_MODE = process.env.DEV_MODE === 'true';
+      
+      // Verificar se usuário tem função de manter CRUDs (admin)
+      const userFunctions = req.user?.functions || [];
+      const isAdmin = userFunctions.includes('crud.manter_cruds') || 
+                      userFunctions.includes('crud.visualizar_cruds');
+      
+      if (!DEV_MODE || !isAdmin) {
+        return res.status(403).json({ 
+          message: 'Não é possível editar interfaces de sistema. Apenas em modo desenvolvimento (DEV_MODE=true) e para administradores.' 
+        });
+      }
+    }
+
     // Salvar dados antigos para log
     const oldData = crud.get({ plain: true });
 
