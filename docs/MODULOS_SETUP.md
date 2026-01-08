@@ -1,0 +1,114 @@
+# Setup de Módulos como Pacotes NPM
+
+## ✅ Estrutura Criada
+
+Os módulos `pessoa` e `locations` foram movidos para `modules/` na raiz do projeto e configurados como pacotes npm.
+
+## 📦 Estrutura dos Módulos
+
+Cada módulo agora tem:
+- `package.json` - Configuração do pacote npm com campo `mychat`
+- `index.js` - Exporta informações do módulo
+- `.gitignore` - Arquivos ignorados pelo git
+- `README.md` - Documentação do módulo
+- Repositório git inicializado
+
+## 🚀 Como Instalar
+
+### Opção 1: Instalar como pacote local (desenvolvimento)
+
+```bash
+# No diretório raiz do projeto
+cd /Users/pereirajair/Sites/mychat
+
+# Instalar locations primeiro (é dependência do pessoa)
+cd backend
+npm install file:../modules/locations --save
+
+# Instalar pessoa
+npm install file:../modules/pessoa --save
+```
+
+### Opção 2: Instalar de repositório git local
+
+```bash
+cd backend
+npm install file:///Users/pereirajair/Sites/mychat/modules/locations --save
+npm install file:///Users/pereirajair/Sites/mychat/modules/pessoa --save
+```
+
+### Opção 3: Instalar de repositório git remoto (futuro)
+
+Quando você criar repositórios remotos:
+
+```bash
+cd backend
+npm install git+https://github.com/seu-usuario/mychat-locations.git --save
+npm install git+https://github.com/seu-usuario/mychat-pessoa.git --save
+```
+
+## 🔄 Como Funciona
+
+1. O `moduleLoader.js` foi atualizado para procurar módulos em:
+   - `backend/src/modules/*` (módulos locais antigos)
+   - `backend/node_modules/@mychat/*` (pacotes npm)
+   - `node_modules/@mychat/*` (raiz do projeto)
+
+2. Módulos npm têm prioridade sobre módulos locais
+
+3. As dependências são normalizadas automaticamente:
+   - `@mychat/pessoa` → `pessoa`
+   - `@mychat/locations` → `locations`
+
+## 📝 Próximos Passos
+
+1. **Instalar os módulos:**
+   ```bash
+   cd backend
+   npm install file:../modules/locations --save
+   npm install file:../modules/pessoa --save
+   ```
+
+2. **Verificar instalação:**
+   ```bash
+   ls -la node_modules/@mychat/
+   ```
+
+3. **Testar o sistema:**
+   - Os módulos devem aparecer automaticamente em `/admin/models`
+   - Você pode instalar/desinstalar através da interface
+
+4. **Criar repositórios remotos (opcional):**
+   ```bash
+   # No GitHub/GitLab, criar repositórios:
+   # - mychat-pessoa
+   # - mychat-locations
+   
+   # Depois adicionar remotes:
+   cd modules/pessoa
+   git remote add origin https://github.com/seu-usuario/mychat-pessoa.git
+   git push -u origin main
+   ```
+
+## 🔧 Desenvolvimento
+
+Para desenvolver os módulos:
+
+1. Faça alterações em `modules/pessoa/` ou `modules/locations/`
+2. Commit as alterações:
+   ```bash
+   cd modules/pessoa
+   git add .
+   git commit -m "Sua mensagem"
+   ```
+3. Atualizar no projeto:
+   ```bash
+   cd backend
+   npm install file:../modules/pessoa --save --force
+   ```
+
+## 📚 Documentação
+
+- Veja `modules/README.md` para mais detalhes sobre desenvolvimento de módulos
+- Veja `INSTALL_MODULES.md` na raiz do projeto para instruções completas
+

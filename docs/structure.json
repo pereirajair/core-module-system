@@ -1,0 +1,84 @@
+//1,'ADMIN ORGANIZATION'
+organizations: {
+    id: int,
+    name: string
+}
+
+//1,'ADMIN','admin@mychat.com',md5('test123')
+//2,'MANAGER','manager@mychat.com',md5('test123')
+//3,'ATENDE','atende@mychat.com',md5('test123')
+users { 
+    id: int,
+    name: string,
+    email: email,
+    password: hash md5 
+}
+
+//1,'ADMIN'
+//2,'MANAGER'
+//3,'ATENDE'
+roles: {
+    id: int,
+    name: string
+}
+
+//1,1
+//2,2
+//3,3
+user_roles {
+    id_user : int,
+    id_role : int
+}
+
+//1,1
+user_organization: {
+    id_user: int,
+    id_organization: int,
+}
+
+//1,'TEST CONTACT','4132008080','test@test.com'
+contacts {
+    id: int,
+    name: string,
+    phone: string,
+    email: string
+}
+
+//1,'TEST',99,{ number: '41988870414' },
+channels {
+    id: int, 
+    name: string,
+    type: id_type,
+    config: json {
+        number: int,
+        email: string,
+    }
+}
+
+//99,'Whatsapp'
+//98,'Email'
+//97,'Api'
+channel_type {
+    id: int,
+    name: string
+}
+
+conversations {
+    id: uuid, 
+    id_channel: int,
+    id_user: int,
+    id_contact: int, 
+    status: int // 1 - OPEN, 0 - CLOSED
+}
+
+messages: {
+    id: uuid, 
+    id_channel: int,
+    id_user: int,
+    id_contact: int,
+    sent_at: datetime,
+    received_at: datetime,
+    id_origin: int, //1 - FROM USER , 2 - FROM CONTACT
+    message: text,
+    message_type: string
+}

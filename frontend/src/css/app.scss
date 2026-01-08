@@ -1,0 +1,11 @@
+// app global css in SCSS form
+
+.q-table.no-margin {
+  margin: 0;
+}
+
+.q-table.cursor-pointer {
+  tbody tr {
+    cursor: pointer;
+  }
+}

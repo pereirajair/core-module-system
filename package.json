@@ -43,7 +43,18 @@
     "swagger-ui-express": "^5.0.1",
     "uuid": "^13.0.0",
     "yamljs": "^0.3.0",
-    "node-cron": "^3.0.3"
+    "node-cron": "^3.0.3",
+    "@monaco-editor/loader": "^1.7.0",
+    "@quasar/extras": "^1.16.4",
+    "axios": "^1.13.2",
+    "jwt-decode": "^4.0.0",
+    "mermaid": "^11.12.2",
+    "pinia": "^3.0.4",
+    "quasar": "^2.16.0",
+    "three": "^0.182.0",
+    "vue": "^3.5.22",
+    "vue-router": "^4.0.0",
+    "vuedraggable": "^4.1.0"
   },
   "gestor": {
     "module": true,
