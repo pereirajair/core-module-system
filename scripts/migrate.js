@@ -4,7 +4,7 @@ const path = require('path');
 const fs = require('fs');
 
 // Tentar carregar .env do diretório frontend (onde está o projeto principal)
-// O módulo pode estar em mod/system ou node_modules/@gestor/system
+// IMPORTANTE: O módulo deve estar instalado em node_modules/@gestor/system
 const possibleEnvPaths = [
   path.resolve(__dirname, '../../../frontend/.env'), // node_modules/@gestor/system/scripts -> frontend/.env
   path.resolve(__dirname, '../../../../frontend/.env'), // node_modules/@gestor/system/scripts -> frontend/.env (alternativo)
@@ -27,6 +27,13 @@ if (envPath) {
   require('dotenv').config(); // Tentar do diretório atual como fallback
 }
 const { Sequelize, DataTypes } = require('sequelize');
+
+// Limpar cache do moduleLoader para garantir que novos módulos sejam detectados
+const moduleLoaderPath = require.resolve('../utils/moduleLoader');
+if (require.cache[moduleLoaderPath]) {
+  delete require.cache[moduleLoaderPath];
+}
+
 const { getModuleMigrationsPaths } = require('../utils/moduleLoader');
 
 const config = require('../config/database.js')[process.env.NODE_ENV || 'development'];
@@ -48,9 +55,14 @@ console.log(`📦 Caminhos de migrations encontrados: ${moduleMigrationsPaths.le
 if (moduleMigrationsPaths.length > 0) {
   console.log('   Módulos:', moduleMigrationsPaths.map(p => {
     const parts = p.split(path.sep);
-    const modIndex = parts.indexOf('mod');
-    return modIndex >= 0 && modIndex < parts.length - 1 ? parts[modIndex + 1] : 'unknown';
+    const gestorIndex = parts.indexOf('@gestor');
+    if (gestorIndex >= 0 && gestorIndex < parts.length - 1) {
+      return parts[gestorIndex + 1];
+    }
+    return 'unknown';
   }).join(', '));
+} else {
+  console.log('⚠️  Nenhum módulo habilitado encontrado para migrations');
 }
 
 async function runMigrations() {
@@ -89,44 +101,39 @@ async function runMigrations() {
     }
     
     // Carregar migrations dos módulos na ordem de dependências
-    for (const migrationsPath of moduleMigrationsPaths) {
+    console.log(`\n🔍 Processando ${moduleMigrationsPaths.length} caminho(s) de migrations de módulos...`);
+    for (let i = 0; i < moduleMigrationsPaths.length; i++) {
+      const migrationsPath = moduleMigrationsPaths[i];
+      console.log(`\n📂 [${i + 1}/${moduleMigrationsPaths.length}] Processando: ${migrationsPath}`);
+      
       if (!fs.existsSync(migrationsPath)) {
-        console.log(`⚠️  Caminho não encontrado: ${migrationsPath}`);
+        console.log(`❌ Caminho não encontrado: ${migrationsPath}`);
         continue;
       }
+      console.log(`✅ Caminho existe`);
 
       // Verificar se o caminho real já foi adicionado (evitar duplicatas)
       const realMigrationsPath = resolveRealPath(migrationsPath);
+      console.log(`🔗 Caminho real resolvido: ${realMigrationsPath}`);
+      
       if (migrationPathsAdded.has(realMigrationsPath)) {
         console.log(`⏭️  Caminho de migrations já foi carregado (duplicata ignorada): ${migrationsPath}`);
         continue;
       }
       migrationPathsAdded.add(realMigrationsPath);
+      console.log(`✅ Caminho adicionado ao conjunto (não é duplicata)`);
 
       // Extrair nome do módulo do caminho
-      // Suporta: .../mod/[nome-do-modulo]/migrations
-      //          .../modules/[nome-do-modulo]/migrations
-      //          .../node_modules/@gestor/[nome-do-modulo]/migrations
+      // IMPORTANTE: Suporta APENAS .../node_modules/@gestor/[nome-do-modulo]/migrations
       const pathParts = migrationsPath.split(path.sep);
       let moduleName = 'unknown';
       
-      // Tentar encontrar em mod/ (nova estrutura)
-      const modIndex = pathParts.indexOf('mod');
-      if (modIndex >= 0 && modIndex < pathParts.length - 1) {
-        moduleName = pathParts[modIndex + 1];
-      } else {
-        // Tentar encontrar em modules/
-        const modulesIndex = pathParts.indexOf('modules');
-        if (modulesIndex >= 0 && modulesIndex < pathParts.length - 1) {
-          moduleName = pathParts[modulesIndex + 1];
-        } else {
-          // Tentar encontrar em node_modules/@gestor/
-          const gestorIndex = pathParts.indexOf('@gestor');
-          if (gestorIndex >= 0 && gestorIndex < pathParts.length - 1) {
-            moduleName = pathParts[gestorIndex + 1];
-          }
-        }
+      // Tentar encontrar em node_modules/@gestor/
+      const gestorIndex = pathParts.indexOf('@gestor');
+      if (gestorIndex >= 0 && gestorIndex < pathParts.length - 1) {
+        moduleName = pathParts[gestorIndex + 1];
       }
+      console.log(`📦 Nome do módulo extraído: ${moduleName}`);
 
       const files = fs.readdirSync(migrationsPath)
         .filter(file => file.endsWith('.js'))
@@ -136,7 +143,10 @@ async function runMigrations() {
           source: moduleName
         }));
 
-      console.log(`📁 Carregando ${files.length} migration(s) do módulo "${moduleName}": ${migrationsPath}`);
+      console.log(`📁 Carregando ${files.length} migration(s) do módulo "${moduleName}":`);
+      files.forEach((f, idx) => {
+        console.log(`   ${idx + 1}. ${f.name} (${f.source})`);
+      });
       allMigrations.push(...files);
     }
 
@@ -151,98 +161,171 @@ async function runMigrations() {
     // Verificar se a tabela SequelizeMeta existe, se não, criar
     let executedNames = new Set();
     try {
-      const [executedMigrations] = await sequelize.query(
+      const executedMigrations = await sequelize.query(
         "SELECT name FROM SequelizeMeta ORDER BY name",
         { type: sequelize.QueryTypes.SELECT }
       );
-      executedNames = new Set(executedMigrations.map(m => m.name));
+      
+      // Garantir que é um array
+      const migrationsArray = Array.isArray(executedMigrations) ? executedMigrations : [];
+      
+      console.log(`📋 Migrations já executadas encontradas na tabela: ${migrationsArray.length}`);
+      if (migrationsArray.length > 0) {
+        console.log(`   Primeiras 5: ${migrationsArray.slice(0, 5).map(m => {
+          if (typeof m === 'string') return m;
+          if (typeof m === 'object' && m !== null) return m.name || JSON.stringify(m);
+          return String(m);
+        }).join(', ')}`);
+      }
+      
+      // Garantir que estamos mapeando corretamente (pode ser objeto ou string)
+      executedNames = new Set(migrationsArray.map(m => {
+        if (typeof m === 'string') return m;
+        if (typeof m === 'object' && m !== null) return m.name || m;
+        return String(m);
+      }));
+      console.log(`✅ Set de migrations executadas criado com ${executedNames.size} item(s)`);
     } catch (error) {
+      console.log(`⚠️  Tabela SequelizeMeta não existe ou erro ao consultar: ${error.message}`);
       // Tabela não existe, criar
-      await queryInterface.createTable('SequelizeMeta', {
-        name: {
-          type: DataTypes.STRING,
-          allowNull: false,
-          primaryKey: true
-        }
-      });
-      console.log('📋 Tabela SequelizeMeta criada.');
+      try {
+        await queryInterface.createTable('SequelizeMeta', {
+          name: {
+            type: DataTypes.STRING,
+            allowNull: false,
+            primaryKey: true
+          }
+        });
+        console.log('📋 Tabela SequelizeMeta criada.');
+      } catch (createError) {
+        console.log(`⚠️  Erro ao criar tabela SequelizeMeta: ${createError.message}`);
+      }
       // Verificar novamente após criar a tabela (pode já ter dados)
       try {
-        const [executedMigrations] = await sequelize.query(
+        const executedMigrations = await sequelize.query(
           "SELECT name FROM SequelizeMeta ORDER BY name",
           { type: sequelize.QueryTypes.SELECT }
         );
-        executedNames = new Set(executedMigrations.map(m => m.name));
+        
+        // Garantir que é um array
+        const migrationsArray = Array.isArray(executedMigrations) ? executedMigrations : [];
+        
+        executedNames = new Set(migrationsArray.map(m => {
+          if (typeof m === 'string') return m;
+          if (typeof m === 'object' && m !== null) return m.name || m;
+          return String(m);
+        }));
+        console.log(`✅ Set de migrations executadas criado após criar tabela: ${executedNames.size} item(s)`);
       } catch (e) {
+        console.log(`⚠️  Tabela vazia ou erro ao consultar após criar: ${e.message}`);
         // Tabela vazia, continuar
       }
     }
 
     let executedCount = 0;
+    let skippedCount = 0;
+    let errorCount = 0;
+    
+    console.log(`\n🚀 Iniciando execução de ${allMigrations.length} migration(s)...`);
+    console.log(`📊 Status: ${executedNames.size} já executada(s), ${allMigrations.length - executedNames.size} pendente(s)\n`);
+    
     for (const migration of allMigrations) {
-      if (executedNames.has(migration.name)) {
-        console.log(`⏭️  ${migration.name} já executada`);
+      // Verificar se a migration já foi executada
+      // O nome pode estar armazenado com ou sem extensão .js
+      const migrationName = migration.name;
+      const migrationNameWithoutExt = migrationName.replace(/\.js$/, '');
+      
+      const isExecuted = executedNames.has(migrationName) || executedNames.has(migrationNameWithoutExt);
+      
+      if (isExecuted) {
+        console.log(`⏭️  [${migration.source}] ${migration.name} já executada`);
+        skippedCount++;
         continue;
       }
 
-      console.log(`🔄 Executando: ${migration.name}`);
-      const migrationModule = require(migration.path);
+      console.log(`🔄 [${migration.source}] Executando: ${migration.name}`);
+      console.log(`   📂 Caminho: ${migration.path}`);
       
-      if (migrationModule.up) {
-        try {
+      try {
+        const migrationModule = require(migration.path);
+        
+        if (migrationModule.up) {
+          console.log(`   ✅ Função 'up' encontrada, executando...`);
           await migrationModule.up(queryInterface, DataTypes);
-          // Usar INSERT IGNORE ou verificar novamente antes de inserir
+          // Registrar a migration na tabela SequelizeMeta
+          // IMPORTANTE: Sequelize armazena o nome SEM a extensão .js
+          const migrationNameToStore = migration.name.replace(/\.js$/, '');
+          await sequelize.query(
+            `INSERT IGNORE INTO SequelizeMeta (name) VALUES ('${migrationNameToStore.replace(/'/g, "''")}')`
+          );
+          executedCount++;
+          // Adicionar ao Set local para evitar re-execução na mesma rodada
+          executedNames.add(migrationNameToStore);
+          executedNames.add(migration.name); // Também adicionar com extensão para garantir
+          console.log(`   ✅ ${migration.name} executada com sucesso (registrada como: ${migrationNameToStore})\n`);
+        } else {
+          console.log(`   ⚠️  Função 'up' não encontrada no módulo\n`);
+        }
+      } catch (error) {
+        errorCount++;
+        console.log(`   ❌ Erro ao executar ${migration.name}:`);
+        console.log(`      Tipo: ${error.name}`);
+        console.log(`      Mensagem: ${error.message}`);
+        if (error.original) {
+          console.log(`      Erro original: ${error.original.code || error.original.errno} - ${error.original.sqlMessage || error.original.message}`);
+        }
+        
+        // Se já foi executada entre a verificação e a execução, apenas logar
+        if (error.name === 'SequelizeUniqueConstraintError' || 
+            (error.original && error.original.code === 'ER_DUP_ENTRY')) {
+          console.log(`   ⏭️  ${migration.name} já foi executada durante o processo`);
+          // Registrar como executada mesmo que tenha dado erro de duplicata
           await sequelize.query(
             `INSERT IGNORE INTO SequelizeMeta (name) VALUES ('${migration.name.replace(/'/g, "''")}')`
           );
-          executedCount++;
-          console.log(`✅ ${migration.name} executada com sucesso`);
-        } catch (error) {
-          // Se já foi executada entre a verificação e a execução, apenas logar
-          if (error.name === 'SequelizeUniqueConstraintError' || 
-              (error.original && error.original.code === 'ER_DUP_ENTRY')) {
-            console.log(`⏭️  ${migration.name} já foi executada durante o processo`);
-            // Registrar como executada mesmo que tenha dado erro de duplicata
-            await sequelize.query(
-              `INSERT IGNORE INTO SequelizeMeta (name) VALUES ('${migration.name.replace(/'/g, "''")}')`
-            );
-            continue;
-          }
-          // Se for erro de coluna/campo duplicado, apenas avisar e continuar
-          if (error.name === 'SequelizeDatabaseError' && 
-              (error.original && (error.original.code === 'ER_DUP_FIELDNAME' || error.original.errno === 1060))) {
-            console.log(`⚠️  ${migration.name}: Campo já existe (${error.original.sqlMessage || error.message}). Pulando...`);
-            // Registrar como executada mesmo que tenha dado erro de campo duplicado
-            await sequelize.query(
-              `INSERT IGNORE INTO SequelizeMeta (name) VALUES ('${migration.name.replace(/'/g, "''")}')`
-            );
-            continue;
-          }
-          // Se for erro de índice/chave duplicado, apenas avisar e continuar
-          if (error.name === 'SequelizeDatabaseError' && 
-              (error.original && (error.original.code === 'ER_DUP_KEYNAME' || error.original.errno === 1061))) {
-            console.log(`⚠️  ${migration.name}: Índice/chave já existe (${error.original.sqlMessage || error.message}). Pulando...`);
-            // Registrar como executada mesmo que tenha dado erro de índice duplicado
-            await sequelize.query(
-              `INSERT IGNORE INTO SequelizeMeta (name) VALUES ('${migration.name.replace(/'/g, "''")}')`
-            );
-            continue;
-          }
-          // Se for erro de tabela duplicada, apenas avisar e continuar
-          if (error.name === 'SequelizeDatabaseError' && 
-              (error.original && (error.original.code === 'ER_TABLE_EXISTS_ERROR' || error.original.errno === 1050))) {
-            console.log(`⚠️  ${migration.name}: Tabela já existe (${error.original.sqlMessage || error.message}). Pulando...`);
-            // Registrar como executada mesmo que tenha dado erro de tabela duplicada
-            await sequelize.query(
-              `INSERT IGNORE INTO SequelizeMeta (name) VALUES ('${migration.name.replace(/'/g, "''")}')`
-            );
-            continue;
-          }
-          throw error;
+          continue;
         }
+        // Se for erro de coluna/campo duplicado, apenas avisar e continuar
+        if (error.name === 'SequelizeDatabaseError' && 
+            (error.original && (error.original.code === 'ER_DUP_FIELDNAME' || error.original.errno === 1060))) {
+          console.log(`   ⚠️  ${migration.name}: Campo já existe (${error.original.sqlMessage || error.message}). Pulando...`);
+          // Registrar como executada mesmo que tenha dado erro de campo duplicado
+          await sequelize.query(
+            `INSERT IGNORE INTO SequelizeMeta (name) VALUES ('${migration.name.replace(/'/g, "''")}')`
+          );
+          continue;
+        }
+        // Se for erro de índice/chave duplicado, apenas avisar e continuar
+        if (error.name === 'SequelizeDatabaseError' && 
+            (error.original && (error.original.code === 'ER_DUP_KEYNAME' || error.original.errno === 1061))) {
+          console.log(`   ⚠️  ${migration.name}: Índice/chave já existe (${error.original.sqlMessage || error.message}). Pulando...`);
+          // Registrar como executada mesmo que tenha dado erro de índice duplicado
+          await sequelize.query(
+            `INSERT IGNORE INTO SequelizeMeta (name) VALUES ('${migration.name.replace(/'/g, "''")}')`
+          );
+          continue;
+        }
+        // Se for erro de tabela duplicada, apenas avisar e continuar
+        if (error.name === 'SequelizeDatabaseError' && 
+            (error.original && (error.original.code === 'ER_TABLE_EXISTS_ERROR' || error.original.errno === 1050))) {
+          console.log(`   ⚠️  ${migration.name}: Tabela já existe (${error.original.sqlMessage || error.message}). Pulando...`);
+          // Registrar como executada mesmo que tenha dado erro de tabela duplicada
+          await sequelize.query(
+            `INSERT IGNORE INTO SequelizeMeta (name) VALUES ('${migration.name.replace(/'/g, "''")}')`
+          );
+          continue;
+        }
+        console.log(`   ❌ Erro não tratado, continuando com próxima migration...\n`);
+        // Não lançar erro para não interromper a execução das outras migrations
       }
     }
 
+    console.log(`\n📊 Resumo da execução de migrations:`);
+    console.log(`   ✅ Executadas: ${executedCount}`);
+    console.log(`   ⏭️  Já executadas (puladas): ${skippedCount}`);
+    console.log(`   ❌ Erros: ${errorCount}`);
+    console.log(`   📦 Total processadas: ${allMigrations.length}`);
+    
     if (executedCount === 0) {
       console.log('\n✅ Nenhuma migration pendente.');
     } else {

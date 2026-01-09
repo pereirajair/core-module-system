@@ -10,6 +10,73 @@ function getDb() {
   return modelsLoader.loadModels();
 }
 
+/**
+ * Encontra o diretório do projeto principal (onde está o package.json com as dependências)
+ * Procura recursivamente a partir do diretório atual até encontrar node_modules/@gestor
+ * @returns {string} Caminho do diretório do projeto principal
+ */
+function findProjectRoot() {
+  // Tentar diferentes estratégias para encontrar o diretório do projeto
+  
+  // 1. Se estiver em node_modules/@gestor/system, subir até encontrar o package.json do projeto
+  if (__dirname.includes('node_modules/@gestor/system')) {
+    let currentPath = __dirname;
+    while (currentPath !== path.dirname(currentPath)) {
+      const packageJsonPath = path.join(currentPath, 'package.json');
+      const nodeModulesPath = path.join(currentPath, 'node_modules', '@gestor');
+      
+      // Se encontrar package.json e node_modules/@gestor no mesmo nível, é o projeto principal
+      if (fs.existsSync(packageJsonPath) && fs.existsSync(nodeModulesPath)) {
+        return currentPath;
+      }
+      currentPath = path.dirname(currentPath);
+    }
+  }
+  
+  // 2. Tentar process.cwd() (diretório atual de trabalho)
+  const cwd = process.cwd();
+  const cwdPackageJson = path.join(cwd, 'package.json');
+  const cwdNodeModules = path.join(cwd, 'node_modules', '@gestor');
+  if (fs.existsSync(cwdPackageJson) && fs.existsSync(cwdNodeModules)) {
+    return cwd;
+  }
+  
+  // 3. Procurar recursivamente a partir de __dirname
+  let currentPath = __dirname;
+  for (let i = 0; i < 10; i++) { // Limitar a 10 níveis para evitar loop infinito
+    const packageJsonPath = path.join(currentPath, 'package.json');
+    const nodeModulesPath = path.join(currentPath, 'node_modules', '@gestor');
+    
+    if (fs.existsSync(packageJsonPath) && fs.existsSync(nodeModulesPath)) {
+      return currentPath;
+    }
+    
+    const parentPath = path.dirname(currentPath);
+    if (parentPath === currentPath) {
+      break; // Chegou à raiz do sistema de arquivos
+    }
+    currentPath = parentPath;
+  }
+  
+  // 4. Fallback: tentar encontrar node_modules/@gestor mais próximo
+  currentPath = __dirname;
+  for (let i = 0; i < 10; i++) {
+    const nodeModulesPath = path.join(currentPath, 'node_modules', '@gestor');
+    if (fs.existsSync(nodeModulesPath)) {
+      return currentPath;
+    }
+    
+    const parentPath = path.dirname(currentPath);
+    if (parentPath === currentPath) {
+      break;
+    }
+    currentPath = parentPath;
+  }
+  
+  // 5. Último fallback: usar process.cwd()
+  return process.cwd();
+}
+
 const modulesPath = path.join(__dirname, '../../../modules');
 
 // Listar todos os módulos
@@ -378,12 +445,12 @@ async function installModuleInternal(moduleName) {
     throw new Error(`Módulo ${moduleName} não encontrado`);
   }
   
-  // Habilitar módulo (suporta módulos locais e npm/@gestor)
-  const backendPath = path.join(__dirname, '../../../backend');
+  // Habilitar módulo (suporta apenas npm/@gestor)
+  // IMPORTANTE: Usar caminho relativo dinâmico, não hardcoded "frontend/"
+  const projectRoot = findProjectRoot();
 
   const possibleModuleBases = [
-    path.join(modulesPath, moduleName),                                // módulos locais: modules/<name>
-    path.join(backendPath, 'node_modules', '@gestor', moduleName),     // npm: backend/node_modules/@gestor/<name>
+    path.join(projectRoot, 'node_modules', '@gestor', moduleName),     // npm: projectRoot/node_modules/@gestor/<name>
     path.join(__dirname, '../../../../node_modules/@gestor', moduleName) // npm quando system está em node_modules
   ];
 
@@ -499,12 +566,12 @@ async function uninstallModule(req, res) {
       }
     }
     
-    // Desabilitar módulo (tanto para módulos locais quanto npm/@gestor)
-    const backendPath = path.join(__dirname, '../../../backend');
+    // Desabilitar módulo (apenas npm/@gestor)
+    // IMPORTANTE: Usar caminho relativo dinâmico, não hardcoded "frontend/"
+    const projectRoot = findProjectRoot();
 
     const possibleModuleBases = [
-      path.join(modulesPath, name),                                // módulos locais: modules/<name>
-      path.join(backendPath, 'node_modules', '@gestor', name),     // npm: backend/node_modules/@gestor/<name>
+      path.join(projectRoot, 'node_modules', '@gestor', name),     // npm: projectRoot/node_modules/@gestor/<name>
       path.join(__dirname, '../../../../node_modules/@gestor', name) // npm quando system está em node_modules
     ];
 
@@ -599,18 +666,45 @@ async function runMigrationsInternal() {
   try {
     console.log('🔄 Executando migrations...');
     const { execSync } = require('child_process');
-    const result = execSync('npm run db:migrate', {
-      cwd: process.cwd(),
-      encoding: 'utf8'
+    // IMPORTANTE: Usar projectRoot em vez de process.cwd()
+    const projectRoot = findProjectRoot();
+    console.log(`📂 Diretório do projeto: ${projectRoot}`);
+    
+    // Limpar cache do moduleLoader para garantir que novos módulos sejam detectados
+    const moduleLoaderPath = require.resolve('../utils/moduleLoader');
+    if (require.cache[moduleLoaderPath]) {
+      delete require.cache[moduleLoaderPath];
+      console.log('🗑️  Cache do moduleLoader limpo');
+    }
+    
+    // Verificar quais módulos serão processados antes de executar
+    const { getModuleMigrationsPaths } = require('../utils/moduleLoader');
+    const migrationPaths = getModuleMigrationsPaths();
+    console.log(`📦 Caminhos de migrations que serão processados: ${migrationPaths.length}`);
+    migrationPaths.forEach((p, i) => {
+      console.log(`   ${i + 1}. ${p}`);
     });
+    
+    console.log(`🚀 Executando: npm run db:migrate no diretório ${projectRoot}`);
+    const result = execSync('npm run db:migrate', {
+      cwd: projectRoot,
+      encoding: 'utf8',
+      stdio: 'pipe',
+      shell: true
+    });
+    
+    console.log('📋 Output do comando db:migrate:');
+    console.log(result);
     console.log('✅ Migrations executadas com sucesso');
     return { success: true, output: result };
   } catch (error) {
     console.error('❌ Erro ao executar migrations:', error);
+    console.error('📋 stdout:', error.stdout);
+    console.error('📋 stderr:', error.stderr);
     return { 
       success: false, 
-      error: error.message, 
-      output: error.stdout || error.stderr 
+      error: error.message,
+      output: error.stdout || error.stderr || error.message
     };
   }
 }
@@ -619,18 +713,45 @@ async function runSeedersInternal() {
   try {
     console.log('🔄 Executando seeders...');
     const { execSync } = require('child_process');
-    const result = execSync('npm run db:seed', {
-      cwd: process.cwd(),
-      encoding: 'utf8'
+    // IMPORTANTE: Usar projectRoot em vez de process.cwd()
+    const projectRoot = findProjectRoot();
+    console.log(`📂 Diretório do projeto: ${projectRoot}`);
+    
+    // Limpar cache do moduleLoader para garantir que novos módulos sejam detectados
+    const moduleLoaderPath = require.resolve('../utils/moduleLoader');
+    if (require.cache[moduleLoaderPath]) {
+      delete require.cache[moduleLoaderPath];
+      console.log('🗑️  Cache do moduleLoader limpo');
+    }
+    
+    // Verificar quais módulos serão processados antes de executar
+    const { getModuleSeedersPaths } = require('../utils/moduleLoader');
+    const seederPaths = getModuleSeedersPaths();
+    console.log(`📦 Caminhos de seeders que serão processados: ${seederPaths.length}`);
+    seederPaths.forEach((p, i) => {
+      console.log(`   ${i + 1}. ${p}`);
     });
+    
+    console.log(`🚀 Executando: npm run db:seed no diretório ${projectRoot}`);
+    const result = execSync('npm run db:seed', {
+      cwd: projectRoot,
+      encoding: 'utf8',
+      stdio: 'pipe',
+      shell: true
+    });
+    
+    console.log('📋 Output do comando db:seed:');
+    console.log(result);
     console.log('✅ Seeders executados com sucesso');
     return { success: true, output: result };
   } catch (error) {
     console.error('❌ Erro ao executar seeders:', error);
+    console.error('📋 stdout:', error.stdout);
+    console.error('📋 stderr:', error.stderr);
     return { 
       success: false, 
-      error: error.message, 
-      output: error.stdout || error.stderr 
+      error: error.message,
+      output: error.stdout || error.stderr || error.message
     };
   }
 }
@@ -662,45 +783,136 @@ async function installModuleFromNpm(req, res) {
     console.log(`📦 Instalando módulo: ${packageName}`);
 
     const { execSync } = require('child_process');
-    const backendPath = path.join(__dirname, '../../../backend');
+    // IMPORTANTE: Usar caminho relativo dinâmico, não hardcoded "frontend/"
+    const projectRoot = findProjectRoot();
     
-    // Executar npm install no diretório backend
+    // Verificar se o diretório do projeto existe
+    if (!fs.existsSync(projectRoot)) {
+      throw new Error(`Diretório do projeto não encontrado: ${projectRoot}`);
+    }
+    
+    // Verificar se existe package.json no diretório do projeto
+    const packageJsonPath = path.join(projectRoot, 'package.json');
+    if (!fs.existsSync(packageJsonPath)) {
+      throw new Error(`package.json não encontrado em: ${projectRoot}`);
+    }
+    
+    // Executar npm install no diretório do projeto
     const command = `npm install ${packageName} --save`;
     
     console.log(`🔄 Executando: ${command}`);
-    console.log(`📂 Diretório: ${backendPath}`);
+    console.log(`📂 Diretório: ${projectRoot}`);
     
     const output = execSync(command, {
-      cwd: backendPath,
+      cwd: projectRoot,
       encoding: 'utf8',
-      stdio: 'pipe'
+      stdio: 'pipe',
+      shell: true
     });
 
     console.log(`✅ Módulo instalado com sucesso`);
     console.log(`📋 Output:\n${output}`);
 
+    // IMPORTANTE: Aguardar um pouco para garantir que o npm install terminou completamente
+    // Isso é necessário porque o npm install pode criar links simbólicos que demoram um pouco para serem resolvidos
+    console.log('⏳ Aguardando 1 segundo para garantir que a instalação foi concluída...');
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
     // Tentar habilitar o módulo automaticamente
     // Procurar o módulo instalado no node_modules/@gestor
-    const gestorNodeModulesPath = path.join(backendPath, 'node_modules', '@gestor');
+    const gestorNodeModulesPath = path.join(projectRoot, 'node_modules', '@gestor');
     if (fs.existsSync(gestorNodeModulesPath)) {
-      const moduleDirs = fs.readdirSync(gestorNodeModulesPath);
+      const moduleDirs = fs.readdirSync(gestorNodeModulesPath, { withFileTypes: true })
+        .filter(dirent => dirent.isDirectory() || dirent.isSymbolicLink())
+        .map(dirent => dirent.name);
+      
+      console.log(`📦 Módulos encontrados em node_modules/@gestor: ${moduleDirs.join(', ')}`);
+      
+      // Extrair nome do módulo do packageName (pode ser file:../mod/pessoa ou @gestor/pessoa)
+      let expectedModuleName = null;
+      if (packageName.includes('@gestor/')) {
+        expectedModuleName = packageName.replace('@gestor/', '').split('/')[0];
+      } else if (packageName.includes('file:')) {
+        // Extrair nome do módulo de file:../mod/pessoa
+        const match = packageName.match(/[\/\\]([^\/\\]+)$/);
+        if (match) {
+          expectedModuleName = match[1];
+        }
+      }
+      
+      console.log(`🔍 Procurando módulo: ${expectedModuleName || 'desconhecido'}`);
+      
       for (const moduleName of moduleDirs) {
         const modulePath = path.join(gestorNodeModulesPath, moduleName);
+        
         // Verificar se o módulo recém-instalado corresponde ao packageName
-        if (packageName.includes(moduleName) || packageName.includes(`@gestor/${moduleName}`)) {
+        if (expectedModuleName && moduleName === expectedModuleName) {
           console.log(`🔄 Tentando habilitar módulo ${moduleName}...`);
-          enableModuleInConfig(modulePath);
+          console.log(`   📂 Caminho do módulo: ${modulePath}`);
+          
+          // Verificar se o módulo realmente existe e tem package.json ou module.json
+          const packageJsonPath = path.join(modulePath, 'package.json');
+          const moduleJsonPath = path.join(modulePath, 'module.json');
+          const migrationsPath = path.join(modulePath, 'migrations');
+          const seedersPath = path.join(modulePath, 'seeders');
+          
+          console.log(`   📄 package.json: ${fs.existsSync(packageJsonPath) ? '✅' : '❌'}`);
+          console.log(`   📄 module.json: ${fs.existsSync(moduleJsonPath) ? '✅' : '❌'}`);
+          console.log(`   📁 migrations: ${fs.existsSync(migrationsPath) ? '✅' : '❌'}`);
+          console.log(`   📁 seeders: ${fs.existsSync(seedersPath) ? '✅' : '❌'}`);
+          
+          const enabled = enableModuleInConfig(modulePath);
+          if (enabled) {
+            console.log(`✅ Módulo ${moduleName} habilitado com sucesso`);
+          } else {
+            console.log(`⚠️  Não foi possível habilitar módulo ${moduleName}`);
+          }
           break;
         }
       }
+    } else {
+      console.log(`⚠️  Diretório node_modules/@gestor não encontrado: ${gestorNodeModulesPath}`);
     }
 
+    // Limpar cache do moduleLoader para garantir que novos módulos sejam detectados
+    const moduleLoaderPath = require.resolve('../utils/moduleLoader');
+    if (require.cache[moduleLoaderPath]) {
+      delete require.cache[moduleLoaderPath];
+    }
+    
     // Recarregar módulos para detectar o novo módulo
     const modules = loadModules();
     const installedModule = modules.find(m => 
       packageName.includes(m.name) || 
       packageName.includes(`@gestor/${m.name}`)
     );
+    
+    console.log(`📦 Módulo instalado detectado: ${installedModule ? installedModule.name : 'não encontrado'}`);
+    if (installedModule) {
+      console.log(`   Caminho: ${installedModule.path}`);
+      console.log(`   Habilitado: ${installedModule.enabled}`);
+      
+      // Se o módulo não estiver habilitado, tentar habilitar novamente
+      if (!installedModule.enabled) {
+        console.log(`⚠️  Módulo ${installedModule.name} não está habilitado. Tentando habilitar...`);
+        const enabled = enableModuleInConfig(installedModule.path);
+        if (enabled) {
+          console.log(`✅ Módulo ${installedModule.name} habilitado com sucesso`);
+          // Limpar cache novamente após habilitar
+          if (require.cache[moduleLoaderPath]) {
+            delete require.cache[moduleLoaderPath];
+          }
+          // Recarregar módulos para verificar se agora está habilitado
+          const modulesAfterEnable = loadModules();
+          const moduleAfterEnable = modulesAfterEnable.find(m => m.name === installedModule.name);
+          if (moduleAfterEnable && moduleAfterEnable.enabled) {
+            console.log(`✅ Módulo ${installedModule.name} confirmado como habilitado`);
+          }
+        }
+      }
+    } else {
+      console.log(`⚠️  Módulo não foi detectado após instalação. Verifique se está instalado em node_modules/@gestor/`);
+    }
 
     // Executar migrations automaticamente
     console.log('🚀 Executando migrations do módulo instalado...');
@@ -769,18 +981,31 @@ async function uninstallModuleFromNpm(req, res) {
     console.log(`🗑️  Desinstalando módulo: ${packageName}`);
 
     const { execSync } = require('child_process');
-    const backendPath = path.join(__dirname, '../../../backend');
+    // IMPORTANTE: Usar caminho relativo dinâmico, não hardcoded "frontend/"
+    const projectRoot = findProjectRoot();
     
-    // Executar npm uninstall no diretório backend
+    // Verificar se o diretório do projeto existe
+    if (!fs.existsSync(projectRoot)) {
+      throw new Error(`Diretório do projeto não encontrado: ${projectRoot}`);
+    }
+    
+    // Verificar se existe package.json no diretório do projeto
+    const packageJsonPath = path.join(projectRoot, 'package.json');
+    if (!fs.existsSync(packageJsonPath)) {
+      throw new Error(`package.json não encontrado em: ${projectRoot}`);
+    }
+    
+    // Executar npm uninstall no diretório do projeto
     const command = `npm uninstall ${packageName}`;
     
     console.log(`🔄 Executando: ${command}`);
-    console.log(`📂 Diretório: ${backendPath}`);
+    console.log(`📂 Diretório: ${projectRoot}`);
     
     const output = execSync(command, {
-      cwd: backendPath,
+      cwd: projectRoot,
       encoding: 'utf8',
-      stdio: 'pipe'
+      stdio: 'pipe',
+      shell: true
     });
 
     console.log(`✅ Módulo desinstalado com sucesso`);

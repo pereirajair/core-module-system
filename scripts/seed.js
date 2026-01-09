@@ -4,7 +4,7 @@ const path = require('path');
 const fs = require('fs');
 
 // Tentar carregar .env do diretório frontend (onde está o projeto principal)
-// O módulo pode estar em mod/system ou node_modules/@gestor/system
+// IMPORTANTE: O módulo deve estar instalado em node_modules/@gestor/system
 const possibleEnvPaths = [
   path.resolve(__dirname, '../../../frontend/.env'), // node_modules/@gestor/system/scripts -> frontend/.env
   path.resolve(__dirname, '../../../../frontend/.env'), // node_modules/@gestor/system/scripts -> frontend/.env (alternativo)
@@ -27,6 +27,13 @@ if (envPath) {
   require('dotenv').config(); // Tentar do diretório atual como fallback
 }
 const { Sequelize, DataTypes } = require('sequelize');
+
+// Limpar cache do moduleLoader para garantir que novos módulos sejam detectados
+const moduleLoaderPath = require.resolve('../utils/moduleLoader');
+if (require.cache[moduleLoaderPath]) {
+  delete require.cache[moduleLoaderPath];
+}
+
 const { getModuleSeedersPaths } = require('../utils/moduleLoader');
 
 const config = require('../config/database.js')[process.env.NODE_ENV || 'development'];
@@ -48,9 +55,14 @@ console.log(`📦 Caminhos de seeders encontrados: ${moduleSeedersPaths.length}`
 if (moduleSeedersPaths.length > 0) {
   console.log('   Módulos:', moduleSeedersPaths.map(p => {
     const parts = p.split(path.sep);
-    const modIndex = parts.indexOf('mod');
-    return modIndex >= 0 && modIndex < parts.length - 1 ? parts[modIndex + 1] : 'unknown';
+    const gestorIndex = parts.indexOf('@gestor');
+    if (gestorIndex >= 0 && gestorIndex < parts.length - 1) {
+      return parts[gestorIndex + 1];
+    }
+    return 'unknown';
   }).join(', '));
+} else {
+  console.log('⚠️  Nenhum módulo habilitado encontrado para seeders');
 }
 
 async function runSeeders() {
@@ -89,44 +101,39 @@ async function runSeeders() {
     }
     
     // Carregar seeders dos módulos na ordem de dependências
-    for (const seedersPath of moduleSeedersPaths) {
+    console.log(`\n🔍 Processando ${moduleSeedersPaths.length} caminho(s) de seeders de módulos...`);
+    for (let i = 0; i < moduleSeedersPaths.length; i++) {
+      const seedersPath = moduleSeedersPaths[i];
+      console.log(`\n📂 [${i + 1}/${moduleSeedersPaths.length}] Processando: ${seedersPath}`);
+      
       if (!fs.existsSync(seedersPath)) {
-        console.log(`⚠️  Caminho não encontrado: ${seedersPath}`);
+        console.log(`❌ Caminho não encontrado: ${seedersPath}`);
         continue;
       }
+      console.log(`✅ Caminho existe`);
 
       // Verificar se o caminho real já foi adicionado (evitar duplicatas)
       const realSeedersPath = resolveRealPath(seedersPath);
+      console.log(`🔗 Caminho real resolvido: ${realSeedersPath}`);
+      
       if (seederPathsAdded.has(realSeedersPath)) {
         console.log(`⏭️  Caminho de seeders já foi carregado (duplicata ignorada): ${seedersPath}`);
         continue;
       }
       seederPathsAdded.add(realSeedersPath);
+      console.log(`✅ Caminho adicionado ao conjunto (não é duplicata)`);
 
       // Extrair nome do módulo do caminho
-      // Suporta: .../mod/[nome-do-modulo]/seeders
-      //          .../modules/[nome-do-modulo]/seeders
-      //          .../node_modules/@gestor/[nome-do-modulo]/seeders
+      // IMPORTANTE: Suporta APENAS .../node_modules/@gestor/[nome-do-modulo]/seeders
       const pathParts = seedersPath.split(path.sep);
       let moduleName = 'unknown';
       
-      // Tentar encontrar em mod/ (nova estrutura)
-      const modIndex = pathParts.indexOf('mod');
-      if (modIndex >= 0 && modIndex < pathParts.length - 1) {
-        moduleName = pathParts[modIndex + 1];
-      } else {
-        // Tentar encontrar em modules/
-        const modulesIndex = pathParts.indexOf('modules');
-        if (modulesIndex >= 0 && modulesIndex < pathParts.length - 1) {
-          moduleName = pathParts[modulesIndex + 1];
-        } else {
-          // Tentar encontrar em node_modules/@gestor/
-          const gestorIndex = pathParts.indexOf('@gestor');
-          if (gestorIndex >= 0 && gestorIndex < pathParts.length - 1) {
-            moduleName = pathParts[gestorIndex + 1];
-          }
-        }
+      // Tentar encontrar em node_modules/@gestor/
+      const gestorIndex = pathParts.indexOf('@gestor');
+      if (gestorIndex >= 0 && gestorIndex < pathParts.length - 1) {
+        moduleName = pathParts[gestorIndex + 1];
       }
+      console.log(`📦 Nome do módulo extraído: ${moduleName}`);
 
       const files = fs.readdirSync(seedersPath)
         .filter(file => file.endsWith('.js'))
@@ -136,7 +143,10 @@ async function runSeeders() {
           source: moduleName
         }));
 
-      console.log(`📁 Carregando ${files.length} seeder(s) do módulo "${moduleName}": ${seedersPath}`);
+      console.log(`📁 Carregando ${files.length} seeder(s) do módulo "${moduleName}":`);
+      files.forEach((f, idx) => {
+        console.log(`   ${idx + 1}. ${f.name} (${f.source})`);
+      });
       allSeeders.push(...files);
     }
 
@@ -151,64 +161,140 @@ async function runSeeders() {
     // Verificar se a tabela SequelizeData existe, se não, criar
     let executedNames = new Set();
     try {
-      const [executedSeeders] = await sequelize.query(
+      const executedSeeders = await sequelize.query(
         "SELECT name FROM SequelizeData ORDER BY name",
         { type: sequelize.QueryTypes.SELECT }
       );
-      executedNames = new Set(executedSeeders.map(s => s.name));
+      
+      // Garantir que é um array
+      const seedersArray = Array.isArray(executedSeeders) ? executedSeeders : [];
+      
+      console.log(`📋 Seeders já executados encontrados na tabela: ${seedersArray.length}`);
+      if (seedersArray.length > 0) {
+        console.log(`   Primeiros 5: ${seedersArray.slice(0, 5).map(s => {
+          if (typeof s === 'string') return s;
+          if (typeof s === 'object' && s !== null) return s.name || JSON.stringify(s);
+          return String(s);
+        }).join(', ')}`);
+      }
+      
+      // Garantir que estamos mapeando corretamente (pode ser objeto ou string)
+      executedNames = new Set(seedersArray.map(s => {
+        if (typeof s === 'string') return s;
+        if (typeof s === 'object' && s !== null) return s.name || s;
+        return String(s);
+      }));
+      console.log(`✅ Set de seeders executados criado com ${executedNames.size} item(s)`);
     } catch (error) {
+      console.log(`⚠️  Tabela SequelizeData não existe ou erro ao consultar: ${error.message}`);
       // Tabela não existe, criar
-      await queryInterface.createTable('SequelizeData', {
-        name: {
-          type: DataTypes.STRING,
-          allowNull: false,
-          primaryKey: true
-        }
-      });
-      console.log('📋 Tabela SequelizeData criada.');
+      try {
+        await queryInterface.createTable('SequelizeData', {
+          name: {
+            type: DataTypes.STRING,
+            allowNull: false,
+            primaryKey: true
+          }
+        });
+        console.log('📋 Tabela SequelizeData criada.');
+      } catch (createError) {
+        console.log(`⚠️  Erro ao criar tabela SequelizeData: ${createError.message}`);
+      }
       // Verificar novamente após criar a tabela (pode já ter dados)
       try {
-        const [executedSeeders] = await sequelize.query(
+        const executedSeeders = await sequelize.query(
           "SELECT name FROM SequelizeData ORDER BY name",
           { type: sequelize.QueryTypes.SELECT }
         );
-        executedNames = new Set(executedSeeders.map(s => s.name));
+        
+        // Garantir que é um array
+        const seedersArray = Array.isArray(executedSeeders) ? executedSeeders : [];
+        
+        executedNames = new Set(seedersArray.map(s => {
+          if (typeof s === 'string') return s;
+          if (typeof s === 'object' && s !== null) return s.name || s;
+          return String(s);
+        }));
+        console.log(`✅ Set de seeders executados criado após criar tabela: ${executedNames.size} item(s)`);
       } catch (e) {
+        console.log(`⚠️  Tabela vazia ou erro ao consultar após criar: ${e.message}`);
         // Tabela vazia, continuar
       }
     }
 
     let executedCount = 0;
+    let skippedCount = 0;
+    let errorCount = 0;
+    
+    console.log(`\n🚀 Iniciando execução de ${allSeeders.length} seeder(s)...`);
+    console.log(`📊 Status: ${executedNames.size} já executado(s), ${allSeeders.length - executedNames.size} pendente(s)\n`);
+    
     for (const seeder of allSeeders) {
-      if (executedNames.has(seeder.name)) {
-        console.log(`⏭️  ${seeder.name} já executado`);
+      // Verificar se o seeder já foi executado
+      // O nome pode estar armazenado com ou sem extensão .js
+      const seederName = seeder.name;
+      const seederNameWithoutExt = seederName.replace(/\.js$/, '');
+      
+      const isExecuted = executedNames.has(seederName) || executedNames.has(seederNameWithoutExt);
+      
+      if (isExecuted) {
+        console.log(`⏭️  [${seeder.source}] ${seeder.name} já executado`);
+        skippedCount++;
         continue;
       }
 
-      console.log(`🔄 Executando: ${seeder.name}`);
-      const seederModule = require(seeder.path);
+      console.log(`🔄 [${seeder.source}] Executando: ${seeder.name}`);
+      console.log(`   📂 Caminho: ${seeder.path}`);
       
-      if (seederModule.up) {
-        try {
+      try {
+        const seederModule = require(seeder.path);
+        
+        if (seederModule.up) {
+          console.log(`   ✅ Função 'up' encontrada, executando...`);
           await seederModule.up(queryInterface, DataTypes);
-          // Usar INSERT IGNORE ou verificar novamente antes de inserir
+          // Registrar o seeder na tabela SequelizeData
+          // IMPORTANTE: Sequelize armazena o nome SEM a extensão .js
+          const seederNameToStore = seeder.name.replace(/\.js$/, '');
           await sequelize.query(
-            `INSERT IGNORE INTO SequelizeData (name) VALUES ('${seeder.name.replace(/'/g, "''")}')`
+            `INSERT IGNORE INTO SequelizeData (name) VALUES ('${seederNameToStore.replace(/'/g, "''")}')`
           );
           executedCount++;
-          console.log(`✅ ${seeder.name} executado com sucesso`);
-        } catch (error) {
-          // Se já foi executado entre a verificação e a execução, apenas logar
-          if (error.name === 'SequelizeUniqueConstraintError' || 
-              (error.original && error.original.code === 'ER_DUP_ENTRY')) {
-            console.log(`⏭️  ${seeder.name} já foi executado durante o processo`);
-            continue;
-          }
-          throw error;
+          // Adicionar ao Set local para evitar re-execução na mesma rodada
+          executedNames.add(seederNameToStore);
+          executedNames.add(seeder.name); // Também adicionar com extensão para garantir
+          console.log(`   ✅ ${seeder.name} executado com sucesso (registrado como: ${seederNameToStore})\n`);
+        } else {
+          console.log(`   ⚠️  Função 'up' não encontrada no módulo\n`);
         }
+      } catch (error) {
+        errorCount++;
+        console.log(`   ❌ Erro ao executar ${seeder.name}:`);
+        console.log(`      Tipo: ${error.name}`);
+        console.log(`      Mensagem: ${error.message}`);
+        if (error.original) {
+          console.log(`      Erro original: ${error.original.code || error.original.errno} - ${error.original.sqlMessage || error.original.message}`);
+        }
+        if (error.stack) {
+          console.log(`      Stack: ${error.stack.split('\n').slice(0, 5).join('\n')}`);
+        }
+        
+        // Se já foi executado entre a verificação e a execução, apenas logar
+        if (error.name === 'SequelizeUniqueConstraintError' || 
+            (error.original && error.original.code === 'ER_DUP_ENTRY')) {
+          console.log(`   ⏭️  ${seeder.name} já foi executado durante o processo\n`);
+          continue;
+        }
+        console.log(`   ❌ Erro não tratado, continuando com próximo seeder...\n`);
+        // Não lançar erro para não interromper a execução dos outros seeders
       }
     }
 
+    console.log(`\n📊 Resumo da execução de seeders:`);
+    console.log(`   ✅ Executados: ${executedCount}`);
+    console.log(`   ⏭️  Já executados (pulados): ${skippedCount}`);
+    console.log(`   ❌ Erros: ${errorCount}`);
+    console.log(`   📦 Total processados: ${allSeeders.length}`);
+    
     if (executedCount === 0) {
       console.log('\n✅ Nenhum seeder pendente.');
     } else {

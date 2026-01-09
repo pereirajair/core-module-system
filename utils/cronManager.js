@@ -30,11 +30,7 @@ function resolveControllerPath(controllerPath) {
     return relativePath;
   }
   
-  // Se contiver 'old/system/', converter para caminho relativo
-  if (controllerPath.includes('old/system/')) {
-    const relativePath = controllerPath.replace(/old\/system\//, '../');
-    return relativePath;
-  }
+  // Nota: old/ não é mais suportado, apenas node_modules/@gestor/*
   
   // Retornar caminho original se não for do módulo system
   return controllerPath;
@@ -54,11 +50,7 @@ function extractModuleName(controllerPath) {
     return match[1];
   }
   
-  // Se contiver 'old/', tentar extrair o nome do módulo
-  const oldMatch = controllerPath.match(/old\/([^\/]+)/);
-  if (oldMatch) {
-    return oldMatch[1];
-  }
+  // Nota: old/ não é mais suportado, apenas node_modules/@gestor/*
   
   // Fallback para 'system'
   return 'system';

@@ -21,57 +21,95 @@ function setAppInstance(app) {
 }
 
 // Função para recarregar models do disco dinamicamente
+// IMPORTANTE: Recarrega models de todos os módulos instalados em node_modules/@gestor/*
 async function reloadModels() {
   try {
     console.log('🔄 Recarregando models do disco...');
-    const modelsPath = path.join(__dirname, '../../src/models');
     
-    // Listar arquivos de model no diretório
-    const files = fs.readdirSync(modelsPath)
-      .filter(file => file.indexOf('.') !== 0 && file !== 'index.js' && file.slice(-3) === '.js');
-    
-    // Limpar cache do require para os arquivos de model
-    files.forEach(file => {
-      const filePath = path.join(modelsPath, file);
-      if (require.cache[require.resolve(filePath)]) {
-        delete require.cache[require.resolve(filePath)];
-      }
-    });
-    
-    // Limpar cache do index.js também
-    const indexPath = path.join(modelsPath, 'index.js');
-    if (require.cache[require.resolve(indexPath)]) {
-      delete require.cache[require.resolve(indexPath)];
+    // Limpar cache do moduleLoader e modelsLoader para garantir que novos módulos sejam detectados
+    const moduleLoaderPath = require.resolve('./moduleLoader');
+    if (require.cache[moduleLoaderPath]) {
+      delete require.cache[moduleLoaderPath];
     }
     
-    // Recarregar o index.js que carrega todos os models
-    delete require.cache[require.resolve(path.join(__dirname, '../models/index.js'))];
+    const modelsLoaderPath = require.resolve('./modelsLoader');
+    if (require.cache[modelsLoaderPath]) {
+      delete require.cache[modelsLoaderPath];
+    }
     
-    // Recarregar models manualmente
-    files.forEach(file => {
-      try {
-        const filePath = path.join(modelsPath, file);
-        const model = require(filePath)(db.sequelize, db.Sequelize.DataTypes);
-        // Atualizar ou adicionar model no objeto db
-        db[model.name] = model;
-      } catch (error) {
-        console.error(`Erro ao recarregar model ${file}:`, error.message);
+    // Carregar módulos usando moduleLoader
+    const { loadModules } = require('./moduleLoader');
+    const modules = loadModules();
+    
+    console.log(`📦 Encontrados ${modules.length} módulo(s) para recarregar models`);
+    
+    // Recarregar models de cada módulo
+    let totalModelsReloaded = 0;
+    
+    for (const module of modules) {
+      if (!module.enabled) {
+        console.log(`⏭️  Pulando módulo ${module.name} (desabilitado)`);
+        continue;
       }
-    });
+      
+      const modelsPath = path.join(module.path, 'models');
+      
+      if (!fs.existsSync(modelsPath)) {
+        console.log(`⚠️  Diretório de models não encontrado para módulo ${module.name}: ${modelsPath}`);
+        continue;
+      }
+      
+      try {
+        // Listar arquivos de model no diretório do módulo
+        const files = fs.readdirSync(modelsPath)
+          .filter(file => file.indexOf('.') !== 0 && file !== 'index.js' && file.slice(-3) === '.js');
+        
+        console.log(`📁 Recarregando ${files.length} model(s) do módulo ${module.name}...`);
+        
+        // Limpar cache do require para os arquivos de model
+        files.forEach(file => {
+          const filePath = path.join(modelsPath, file);
+          try {
+            if (require.cache[require.resolve(filePath)]) {
+              delete require.cache[require.resolve(filePath)];
+            }
+          } catch (e) {
+            // Ignorar se o arquivo não foi carregado ainda
+          }
+        });
+        
+        // Recarregar models manualmente
+        files.forEach(file => {
+          try {
+            const filePath = path.join(modelsPath, file);
+            const model = require(filePath)(db.sequelize, db.Sequelize.DataTypes);
+            // Atualizar ou adicionar model no objeto db
+            const modelName = model.name || model.constructor.name || file.replace('.js', '');
+            db[modelName] = model;
+            totalModelsReloaded++;
+          } catch (error) {
+            console.error(`❌ Erro ao recarregar model ${file} do módulo ${module.name}:`, error.message);
+          }
+        });
+      } catch (error) {
+        console.error(`❌ Erro ao processar models do módulo ${module.name}:`, error.message);
+      }
+    }
     
     // Reassociar models
+    console.log('🔄 Reassociando models...');
     Object.keys(db).forEach(modelName => {
       if (db[modelName] && typeof db[modelName].associate === 'function') {
         try {
           db[modelName].associate(db);
         } catch (error) {
-          console.error(`Erro ao reassociar model ${modelName}:`, error.message);
+          console.error(`❌ Erro ao reassociar model ${modelName}:`, error.message);
         }
       }
     });
     
-    console.log('✅ Models recarregados com sucesso!');
-    return { success: true, message: 'Models recarregados com sucesso' };
+    console.log(`✅ ${totalModelsReloaded} model(s) recarregado(s) com sucesso de ${modules.filter(m => m.enabled).length} módulo(s)!`);
+    return { success: true, message: `${totalModelsReloaded} models recarregados com sucesso` };
   } catch (error) {
     console.error('❌ Erro ao recarregar models:', error);
     return { success: false, message: `Erro ao recarregar models: ${error.message}` };
