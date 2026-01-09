@@ -25,37 +25,43 @@ Módulo de gerenciamento de pessoas.
 
 ## Instalação
 
-### Instalar módulos do GitHub (recomendado)
+### Instalar módulos locais (desenvolvimento)
 
-Os módulos estão configurados no `package.json` do backend e serão instalados automaticamente:
+Os módulos estão configurados no `package.json` do frontend e serão instalados automaticamente:
 
 ```bash
-cd backend
+cd frontend
 npm install
 ```
 
-### Instalar módulos locais (desenvolvimento)
+Isso instalará os módulos de `mod/` como dependências locais via `file:../mod/*`.
+
+### Instalar módulos manualmente
 
 ```bash
-# No diretório backend
-cd backend
+# No diretório frontend
+cd frontend
 
 # Instalar módulo system
-npm install file:../modules/system --save
+npm install file:../mod/system --save
 
 # Instalar módulo chat
-npm install file:../modules/chat --save
+npm install file:../mod/chat --save
 
 # Instalar módulo locations
-npm install file:../modules/locations --save
+npm install file:../mod/locations --save
 
 # Instalar módulo pessoa
-npm install file:../modules/pessoa --save
+npm install file:../mod/pessoa --save
 ```
 
 ### Instalar de repositório git remoto
 
+Cada módulo tem seu próprio repositório Git. Para instalar de um repositório remoto:
+
 ```bash
+cd frontend
+
 # Instalar de um repositório git remoto
 npm install git+https://github.com/pereirajair/core-module-system.git --save
 npm install git+https://github.com/pereirajair/core-module-chat.git --save
@@ -65,17 +71,17 @@ npm install git+https://github.com/pereirajair/core-module-pessoa.git --save
 
 ## Atualização de Módulos
 
-Para atualizar os módulos após mudanças no GitHub:
+Para atualizar os módulos após mudanças:
 
 ```bash
-cd backend
+cd frontend
 npm update @gestor/system @gestor/chat @gestor/locations @gestor/pessoa
 ```
 
 Ou para forçar reinstalação:
 
 ```bash
-cd backend
+cd frontend
 npm install @gestor/system@latest @gestor/chat@latest @gestor/locations@latest @gestor/pessoa@latest --force
 ```
 
@@ -85,8 +91,8 @@ npm install @gestor/system@latest @gestor/chat@latest @gestor/locations@latest @
 
 1. Criar estrutura básica:
 ```bash
-mkdir modules/meu-modulo
-cd modules/meu-modulo
+mkdir mod/meu-modulo
+cd mod/meu-modulo
 npm init -y
 ```
 
@@ -152,31 +158,32 @@ git commit -m "Initial commit"
 
 6. Instalar no projeto:
 ```bash
-cd backend
-npm install file:../modules/meu-modulo --save
+cd frontend
+npm install file:../mod/meu-modulo --save
 ```
 
 ## Como Funciona
 
-O sistema Gestor detecta automaticamente módulos instalados em `node_modules/@gestor/*` através do `moduleLoader.js`. 
+O sistema Gestor detecta automaticamente módulos instalados em `node_modules/@gestor/*` através do carregador de módulos. 
 
 Cada módulo deve:
 1. Ter um `package.json` com campo `gestor.module: true`
 2. Ter informações do módulo no campo `gestor` do `package.json` ou em um arquivo `module.json`
-3. Seguir a estrutura padrão de módulos (models, migrations, seeders, routes, controllers)
+3. Seguir a estrutura padrão de módulos (models, migrations, seeders, routes, controllers, frontend)
 
 ## Compatibilidade com Projetos Quasar
 
 Os módulos podem ser instalados em qualquer projeto Quasar/Node.js que use o sistema Gestor. Basta:
 
-1. Instalar os módulos via npm:
+1. Instalar os módulos via npm no diretório `frontend/`:
 ```bash
+cd frontend
 npm install @gestor/system @gestor/chat @gestor/locations @gestor/pessoa
 ```
 
 2. O sistema detectará automaticamente os módulos em `node_modules/@gestor/*`
 
-3. Configurar o sistema para carregar os módulos (o `moduleLoader.js` já faz isso automaticamente)
+3. O carregador de módulos já faz isso automaticamente
 
 ## Repositórios GitHub
 

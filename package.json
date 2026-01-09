@@ -5,8 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "db:create": "sequelize db:create",
-    "db:drop": "sequelize db:drop",
+    "db:create": "node scripts/db-create.js",
+    "db:drop": "node scripts/db-drop.js",
     "db:migrate": "node scripts/migrate.js",
     "db:migrate:undo": "sequelize db:migrate:undo",
     "db:migrate:undo:all": "sequelize db:migrate:undo:all",

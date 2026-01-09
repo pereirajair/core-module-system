@@ -2,7 +2,7 @@
 
 ## ✅ Estrutura Criada
 
-Os módulos `pessoa` e `locations` foram movidos para `modules/` na raiz do projeto e configurados como pacotes npm.
+Os módulos estão organizados em `mod/` na raiz do projeto e configurados como pacotes npm.
 
 ## 📦 Estrutura dos Módulos
 
@@ -21,20 +21,19 @@ Cada módulo agora tem:
 # No diretório raiz do projeto
 cd /Users/pereirajair/Sites/mychat
 
-# Instalar locations primeiro (é dependência do pessoa)
-cd backend
-npm install file:../modules/locations --save
-
-# Instalar pessoa
-npm install file:../modules/pessoa --save
+# Instalar módulos no frontend
+cd frontend
+npm install file:../mod/locations --save
+npm install file:../mod/pessoa --save
+npm install file:../mod/system --save
 ```
 
 ### Opção 2: Instalar de repositório git local
 
 ```bash
-cd backend
-npm install file:///Users/pereirajair/Sites/mychat/modules/locations --save
-npm install file:///Users/pereirajair/Sites/mychat/modules/pessoa --save
+cd frontend
+npm install file:///Users/pereirajair/Sites/mychat/mod/locations --save
+npm install file:///Users/pereirajair/Sites/mychat/mod/pessoa --save
 ```
 
 ### Opção 3: Instalar de repositório git remoto (futuro)
@@ -42,17 +41,16 @@ npm install file:///Users/pereirajair/Sites/mychat/modules/pessoa --save
 Quando você criar repositórios remotos:
 
 ```bash
-cd backend
+cd frontend
 npm install git+https://github.com/seu-usuario/mychat-locations.git --save
 npm install git+https://github.com/seu-usuario/mychat-pessoa.git --save
 ```
 
 ## 🔄 Como Funciona
 
-1. O `moduleLoader.js` foi atualizado para procurar módulos em:
-   - `backend/src/modules/*` (módulos locais antigos)
-   - `backend/node_modules/@mychat/*` (pacotes npm)
-   - `node_modules/@mychat/*` (raiz do projeto)
+1. O carregador de módulos procura módulos em:
+   - `frontend/node_modules/@gestor/*` (pacotes npm instalados)
+   - `mod/*` (módulos locais para desenvolvimento)
 
 2. Módulos npm têm prioridade sobre módulos locais
 
@@ -64,9 +62,10 @@ npm install git+https://github.com/seu-usuario/mychat-pessoa.git --save
 
 1. **Instalar os módulos:**
    ```bash
-   cd backend
-   npm install file:../modules/locations --save
-   npm install file:../modules/pessoa --save
+   cd frontend
+   npm install file:../mod/locations --save
+   npm install file:../mod/pessoa --save
+   npm install file:../mod/system --save
    ```
 
 2. **Verificar instalação:**
@@ -94,21 +93,21 @@ npm install git+https://github.com/seu-usuario/mychat-pessoa.git --save
 
 Para desenvolver os módulos:
 
-1. Faça alterações em `modules/pessoa/` ou `modules/locations/`
+1. Faça alterações em `mod/pessoa/` ou `mod/locations/`
 2. Commit as alterações:
    ```bash
-   cd modules/pessoa
+   cd mod/pessoa
    git add .
    git commit -m "Sua mensagem"
    ```
 3. Atualizar no projeto:
    ```bash
-   cd backend
-   npm install file:../modules/pessoa --save --force
+   cd frontend
+   npm install file:../mod/pessoa --save --force
    ```
 
 ## 📚 Documentação
 
-- Veja `modules/README.md` para mais detalhes sobre desenvolvimento de módulos
-- Veja `INSTALL_MODULES.md` na raiz do projeto para instruções completas
+- Veja [Módulos Gestor](MODULOS.md) para mais detalhes sobre módulos
+- Veja [Instalação de Módulos](INSTALL_MODULES.md) para instruções completas
 

@@ -102,13 +102,28 @@ function scheduleJob(db, jobInstance) {
       let lastExecutionSuccess = false;
 
       try {
+        // Resolver caminho do controller (converter @gestor/* para caminho relativo se necessário)
+        const moduleLoader = require('./moduleLoader');
+        const resolvedControllerPath = moduleLoader.resolveGestorModule(freshJob.controller);
+        
         // Limpar cache do módulo para garantir que mudanças sejam carregadas
-        const controllerPath = require.resolve(freshJob.controller);
+        let controllerPath;
+        try {
+          controllerPath = require.resolve(resolvedControllerPath);
+        } catch (resolveError) {
+          // Se não conseguir resolver, tentar o caminho original
+          try {
+            controllerPath = require.resolve(freshJob.controller);
+          } catch (originalError) {
+            throw new Error(`Não foi possível resolver o caminho do controller: ${freshJob.controller}. Erro: ${resolveError.message}`);
+          }
+        }
+        
         if (require.cache[controllerPath]) {
           delete require.cache[controllerPath];
         }
 
-        const controllerModule = require(freshJob.controller);
+        const controllerModule = require(resolvedControllerPath);
         const handler = controllerModule[freshJob.method];
 
         if (typeof handler !== 'function') {

@@ -38,11 +38,8 @@ function loadModules() {
   const modulePaths = new Set(); // Usar Set para evitar duplicatas baseado no caminho real
   
   // Determinar caminho base: se estamos em node_modules/@gestor/system, usar caminho relativo ao projeto
-  // Se estamos em backend/src/modules/system, usar caminho relativo ao backend
+  // Se estamos em mod/system, usar caminho relativo à raiz do projeto
   const isNpmModule = __dirname.includes('node_modules/@gestor/system');
-  const basePath = isNpmModule 
-    ? path.join(__dirname, '../../../../backend/src') 
-    : path.join(__dirname, '../../..');
   
   // Função auxiliar para resolver caminho real (resolver links simbólicos)
   function resolveRealPath(modulePath) {
@@ -63,45 +60,71 @@ function loadModules() {
     return false;
   }
   
-  // 1. Carregar módulos locais de backend/src/modules
-  const modulesPath = path.join(basePath, 'modules');
-  if (fs.existsSync(modulesPath)) {
-    const moduleDirs = fs.readdirSync(modulesPath, { withFileTypes: true })
-      .filter(dirent => dirent.isDirectory())
-      .map(dirent => dirent.name);
-    
-    for (const moduleName of moduleDirs) {
-      const modulePath = path.join(modulesPath, moduleName);
-      const moduleJsonPath = path.join(modulePath, 'module.json');
+  // 1. Carregar módulos locais de mod/ (nova estrutura)
+  // Tentar diferentes caminhos possíveis para mod/
+  const possibleModPaths = [
+    path.resolve(__dirname, '../../../mod'), // mod/system/utils -> mod/
+    path.resolve(__dirname, '../../../../mod'), // node_modules/@gestor/system/utils -> mod/
+    path.resolve(__dirname, '../../../../../mod'), // node_modules/@gestor/system/utils -> mod/ (alternativo)
+    path.resolve(process.cwd(), '../mod'), // Se executado de frontend/
+    path.resolve(process.cwd(), 'mod'), // Se executado da raiz
+    // Tentar encontrar mod/ a partir do diretório atual de trabalho
+    path.resolve(process.cwd(), '../../mod'), // Se executado de frontend/node_modules/@gestor/system
+  ];
+  
+  for (const modPath of possibleModPaths) {
+    if (fs.existsSync(modPath)) {
+      const moduleDirs = fs.readdirSync(modPath, { withFileTypes: true })
+        .filter(dirent => dirent.isDirectory())
+        .map(dirent => dirent.name);
       
-      if (fs.existsSync(moduleJsonPath)) {
+      for (const moduleName of moduleDirs) {
+        const modulePath = path.join(modPath, moduleName);
+        const packageJsonPath = path.join(modulePath, 'package.json');
+        const moduleJsonPath = path.join(modulePath, 'module.json');
+        
         try {
           // Verificar se já foi adicionado (evitar duplicatas)
           if (isModuleAlreadyAdded(modulePath)) {
             continue;
           }
           
-          const moduleInfo = JSON.parse(fs.readFileSync(moduleJsonPath, 'utf8'));
-          moduleInfo.path = modulePath;
-          moduleInfo.name = moduleName;
-          moduleInfo.source = 'local';
-          modules.push(moduleInfo);
+          let moduleInfo = null;
+          
+          // Tentar carregar de module.json primeiro
+          if (fs.existsSync(moduleJsonPath)) {
+            moduleInfo = JSON.parse(fs.readFileSync(moduleJsonPath, 'utf8'));
+          }
+          // Senão, tentar carregar de package.json (campo gestor)
+          else if (fs.existsSync(packageJsonPath)) {
+            const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+            if (pkg.gestor && pkg.gestor.module) {
+              moduleInfo = pkg.gestor;
+            }
+          }
+          
+          if (moduleInfo) {
+            moduleInfo.path = modulePath;
+            moduleInfo.name = moduleInfo.name || moduleName;
+            moduleInfo.source = 'local';
+            modules.push(moduleInfo);
+          }
         } catch (error) {
           console.error(`Erro ao carregar módulo local ${moduleName}:`, error.message);
         }
       }
+      break; // Se encontrou mod/, não precisa procurar em outros lugares
     }
   }
   
   // 2. Carregar módulos npm de node_modules/@gestor/*
   // Tentar diferentes caminhos possíveis para node_modules
   const possibleNodeModulesPaths = [
-    path.join(basePath, 'backend', 'node_modules'), // {basePath}/backend/node_modules
-    path.join(basePath, '../node_modules'), // Um nível acima do basePath
-    path.join(basePath, '../../node_modules'), // Dois níveis acima
-    path.join(process.cwd(), 'node_modules'), // Diretório atual de trabalho
-    path.join(process.cwd(), '../../backend/node_modules'), // Relativo ao cwd quando executado de modules/system
-    path.join(__dirname, '../../../../node_modules') // Se estiver em node_modules/@gestor/system
+    path.resolve(__dirname, '../../../frontend/node_modules'), // mod/system/utils -> frontend/node_modules
+    path.resolve(__dirname, '../../../../frontend/node_modules'), // node_modules/@gestor/system/utils -> frontend/node_modules
+    path.resolve(process.cwd(), 'node_modules'), // Diretório atual de trabalho (frontend/)
+    path.resolve(process.cwd(), '../node_modules'), // Um nível acima
+    path.resolve(__dirname, '../../../../node_modules'), // Se estiver em node_modules/@gestor/system
   ];
   
   let gestorModulesPath = null;
@@ -392,12 +415,77 @@ function getModule(moduleName) {
   return modules.find(m => m.name === moduleName) || null;
 }
 
+/**
+ * Resolve imports de @gestor/* para caminhos relativos quando necessário
+ * Útil para seeders, migrations e controllers que precisam importar de outros módulos
+ * @param {string} modulePath - Caminho do módulo (ex: '@gestor/system/utils/modelsLoader' ou '@gestor/pessoa/controllers/batchController')
+ * @returns {string} Caminho resolvido
+ */
+function resolveGestorModule(modulePath) {
+  if (!modulePath || !modulePath.startsWith('@gestor/')) {
+    return modulePath;
+  }
+  
+  // Extrair nome do módulo e caminho relativo
+  // @gestor/pessoa/controllers/batchController -> pessoa, controllers/batchController
+  const match = modulePath.match(/@gestor\/([^\/]+)\/(.+)/);
+  if (!match) {
+    return modulePath;
+  }
+  
+  const moduleName = match[1];
+  const relativePath = match[2];
+  
+  // Tentar diferentes caminhos possíveis
+  const possiblePaths = [
+    // Se estiver em mod/system/utils, procurar em mod/[moduleName]/
+    path.resolve(__dirname, `../../${moduleName}`, relativePath),
+    path.resolve(__dirname, `../../../mod/${moduleName}`, relativePath),
+    // Se estiver em node_modules/@gestor/system/utils, procurar em mod/[moduleName]/
+    path.resolve(__dirname, `../../../../mod/${moduleName}`, relativePath),
+    // Se executado de frontend/
+    path.resolve(process.cwd(), `../mod/${moduleName}`, relativePath),
+    path.resolve(process.cwd(), `mod/${moduleName}`, relativePath),
+    // Se executado da raiz
+    path.resolve(process.cwd(), `../mod/${moduleName}`, relativePath),
+  ];
+  
+  for (const possiblePath of possiblePaths) {
+    if (fs.existsSync(possiblePath)) {
+      return possiblePath;
+    }
+  }
+  
+  // Se não encontrou, tentar usar require original (pode funcionar se estiver em node_modules)
+  try {
+    return require.resolve(modulePath);
+  } catch (e) {
+    // Continuar para tentar caminho relativo
+  }
+  
+  // Última tentativa: caminho relativo direto
+  return path.resolve(__dirname, `../../${moduleName}`, relativePath);
+}
+
+/**
+ * Resolve imports de @gestor/system para caminhos relativos quando necessário
+ * Útil para seeders e migrations de outros módulos que precisam importar do system
+ * @param {string} modulePath - Caminho do módulo (ex: '@gestor/system/utils/modelsLoader')
+ * @returns {string} Caminho resolvido
+ * @deprecated Use resolveGestorModule() instead
+ */
+function resolveSystemModule(modulePath) {
+  return resolveGestorModule(modulePath);
+}
+
 module.exports = {
   loadModules,
   loadModuleModels,
   loadModuleRoutes,
   getModuleMigrationsPaths,
   getModuleSeedersPaths,
-  getModule
+  getModule,
+  resolveSystemModule,
+  resolveGestorModule
 };
 

@@ -87,13 +87,28 @@ async function processQueue(db, queue) {
     let processed = 0;
     let failed = 0;
 
+    // Resolver caminho do controller (converter @gestor/* para caminho relativo se necessário)
+    const moduleLoader = require('./moduleLoader');
+    const resolvedControllerPath = moduleLoader.resolveGestorModule(queue.controller);
+    
     // Limpar cache do módulo para garantir que mudanças sejam carregadas
-    const controllerPath = require.resolve(queue.controller);
+    let controllerPath;
+    try {
+      controllerPath = require.resolve(resolvedControllerPath);
+    } catch (resolveError) {
+      // Se não conseguir resolver, tentar o caminho original
+      try {
+        controllerPath = require.resolve(queue.controller);
+      } catch (originalError) {
+        throw new Error(`Não foi possível resolver o caminho do controller: ${queue.controller}. Erro: ${resolveError.message}`);
+      }
+    }
+    
     if (require.cache[controllerPath]) {
       delete require.cache[controllerPath];
     }
 
-    const controllerModule = require(queue.controller);
+    const controllerModule = require(resolvedControllerPath);
     const handler = controllerModule[queue.method];
 
     if (typeof handler !== 'function') {

@@ -55,13 +55,28 @@ async function executeBatchJob(req, res) {
     let lastExecutionSuccess = false;
 
     try {
+      // Resolver caminho do controller (converter @gestor/* para caminho relativo se necessário)
+      const moduleLoader = require('../utils/moduleLoader');
+      const resolvedControllerPath = moduleLoader.resolveGestorModule(batchJob.controller);
+      
       // Limpar cache do módulo
-      const controllerPath = require.resolve(batchJob.controller);
+      let controllerPath;
+      try {
+        controllerPath = require.resolve(resolvedControllerPath);
+      } catch (resolveError) {
+        // Se não conseguir resolver, tentar o caminho original
+        try {
+          controllerPath = require.resolve(batchJob.controller);
+        } catch (originalError) {
+          throw new Error(`Não foi possível resolver o caminho do controller: ${batchJob.controller}. Erro: ${resolveError.message}`);
+        }
+      }
+      
       if (require.cache[controllerPath]) {
         delete require.cache[controllerPath];
       }
 
-      const controllerModule = require(batchJob.controller);
+      const controllerModule = require(resolvedControllerPath);
       const handler = controllerModule[batchJob.method];
 
       if (typeof handler !== 'function') {

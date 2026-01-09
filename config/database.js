@@ -1,5 +1,30 @@
-require('dotenv').config();
 const path = require('path');
+const fs = require('fs');
+
+// Tentar carregar .env do diretório frontend (onde está o projeto principal)
+// O módulo pode estar em mod/system ou node_modules/@gestor/system
+const possibleEnvPaths = [
+  path.resolve(__dirname, '../../../frontend/.env'), // node_modules/@gestor/system/config -> frontend/.env
+  path.resolve(__dirname, '../../../../frontend/.env'), // node_modules/@gestor/system/config -> frontend/.env (alternativo)
+  path.resolve(__dirname, '../../frontend/.env'), // mod/system/config -> frontend/.env
+  path.resolve(__dirname, '../.env'), // mod/system/.env ou node_modules/@gestor/system/.env
+  path.resolve(__dirname, '../../.env'), // raiz do projeto
+];
+
+let envPath = null;
+for (const envPathCandidate of possibleEnvPaths) {
+  if (fs.existsSync(envPathCandidate)) {
+    envPath = envPathCandidate;
+    break;
+  }
+}
+
+if (envPath) {
+  require('dotenv').config({ path: envPath });
+} else {
+  require('dotenv').config(); // Tentar do diretório atual como fallback
+}
+
 const { getModuleMigrationsPaths, getModuleSeedersPaths } = require('../utils/moduleLoader');
 
 // Caminhos padrão

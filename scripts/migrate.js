@@ -1,9 +1,32 @@
 #!/usr/bin/env node
 
-require('dotenv').config();
 const path = require('path');
-const { Sequelize, DataTypes } = require('sequelize');
 const fs = require('fs');
+
+// Tentar carregar .env do diretório frontend (onde está o projeto principal)
+// O módulo pode estar em mod/system ou node_modules/@gestor/system
+const possibleEnvPaths = [
+  path.resolve(__dirname, '../../../frontend/.env'), // node_modules/@gestor/system/scripts -> frontend/.env
+  path.resolve(__dirname, '../../../../frontend/.env'), // node_modules/@gestor/system/scripts -> frontend/.env (alternativo)
+  path.resolve(__dirname, '../../frontend/.env'), // mod/system/scripts -> frontend/.env
+  path.resolve(__dirname, '../.env'), // mod/system/.env ou node_modules/@gestor/system/.env
+  path.resolve(__dirname, '../../.env'), // raiz do projeto
+];
+
+let envPath = null;
+for (const envPathCandidate of possibleEnvPaths) {
+  if (fs.existsSync(envPathCandidate)) {
+    envPath = envPathCandidate;
+    break;
+  }
+}
+
+if (envPath) {
+  require('dotenv').config({ path: envPath });
+} else {
+  require('dotenv').config(); // Tentar do diretório atual como fallback
+}
+const { Sequelize, DataTypes } = require('sequelize');
 const { getModuleMigrationsPaths } = require('../utils/moduleLoader');
 
 const config = require('../config/database.js')[process.env.NODE_ENV || 'development'];
@@ -21,6 +44,14 @@ const defaultMigrationsPath = path.join(__dirname, '../migrations');
 
 // Obter caminhos de migrations dos módulos (já ordenados por dependências)
 const moduleMigrationsPaths = getModuleMigrationsPaths();
+console.log(`📦 Caminhos de migrations encontrados: ${moduleMigrationsPaths.length}`);
+if (moduleMigrationsPaths.length > 0) {
+  console.log('   Módulos:', moduleMigrationsPaths.map(p => {
+    const parts = p.split(path.sep);
+    const modIndex = parts.indexOf('mod');
+    return modIndex >= 0 && modIndex < parts.length - 1 ? parts[modIndex + 1] : 'unknown';
+  }).join(', '));
+}
 
 async function runMigrations() {
   try {
@@ -73,20 +104,27 @@ async function runMigrations() {
       migrationPathsAdded.add(realMigrationsPath);
 
       // Extrair nome do módulo do caminho
-      // Suporta: .../modules/[nome-do-modulo]/migrations
+      // Suporta: .../mod/[nome-do-modulo]/migrations
+      //          .../modules/[nome-do-modulo]/migrations
       //          .../node_modules/@gestor/[nome-do-modulo]/migrations
       const pathParts = migrationsPath.split(path.sep);
       let moduleName = 'unknown';
       
-      // Tentar encontrar em modules/
-      const modulesIndex = pathParts.indexOf('modules');
-      if (modulesIndex >= 0 && modulesIndex < pathParts.length - 1) {
-        moduleName = pathParts[modulesIndex + 1];
+      // Tentar encontrar em mod/ (nova estrutura)
+      const modIndex = pathParts.indexOf('mod');
+      if (modIndex >= 0 && modIndex < pathParts.length - 1) {
+        moduleName = pathParts[modIndex + 1];
       } else {
-        // Tentar encontrar em node_modules/@gestor/
-        const gestorIndex = pathParts.indexOf('@gestor');
-        if (gestorIndex >= 0 && gestorIndex < pathParts.length - 1) {
-          moduleName = pathParts[gestorIndex + 1];
+        // Tentar encontrar em modules/
+        const modulesIndex = pathParts.indexOf('modules');
+        if (modulesIndex >= 0 && modulesIndex < pathParts.length - 1) {
+          moduleName = pathParts[modulesIndex + 1];
+        } else {
+          // Tentar encontrar em node_modules/@gestor/
+          const gestorIndex = pathParts.indexOf('@gestor');
+          if (gestorIndex >= 0 && gestorIndex < pathParts.length - 1) {
+            moduleName = pathParts[gestorIndex + 1];
+          }
         }
       }
 

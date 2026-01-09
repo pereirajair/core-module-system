@@ -14,6 +14,33 @@ function getGestorSys() {
 }
 
 /**
+ * Converte caminho do controller para caminho relativo quando necessário
+ * @param {string} controllerPath - Caminho do controller (ex: '@gestor/system/controllers/cronController')
+ * @returns {string} Caminho relativo ou original
+ */
+function resolveControllerPath(controllerPath) {
+  if (!controllerPath) return controllerPath;
+  
+  // Se começar com @gestor/system/, converter para caminho relativo
+  // Isso é necessário porque quando o código está dentro do próprio módulo,
+  // não pode usar o nome do pacote npm para se referir a si mesmo
+  if (controllerPath.startsWith('@gestor/system/')) {
+    // Converter @gestor/system/controllers/mailerController -> ../controllers/mailerController
+    const relativePath = controllerPath.replace('@gestor/system/', '../');
+    return relativePath;
+  }
+  
+  // Se contiver 'old/system/', converter para caminho relativo
+  if (controllerPath.includes('old/system/')) {
+    const relativePath = controllerPath.replace(/old\/system\//, '../');
+    return relativePath;
+  }
+  
+  // Retornar caminho original se não for do módulo system
+  return controllerPath;
+}
+
+/**
  * Extrai o nome do módulo do caminho do controller
  * @param {string} controllerPath - Caminho do controller (ex: '@gestor/system/controllers/cronController')
  * @returns {string} Nome do módulo (ex: 'system', 'pessoa')
@@ -132,13 +159,27 @@ function scheduleJob(db, jobInstance) {
       let lastExecutionSuccess = false;
 
       try {
+        // Converter caminho do controller para caminho relativo se necessário
+        const resolvedControllerPath = resolveControllerPath(freshJob.controller);
+        
         // Limpar cache do módulo para garantir que mudanças sejam carregadas
-        const controllerPath = require.resolve(freshJob.controller);
+        let controllerPath;
+        try {
+          controllerPath = require.resolve(resolvedControllerPath);
+        } catch (resolveError) {
+          // Se não conseguir resolver, tentar o caminho original
+          try {
+            controllerPath = require.resolve(freshJob.controller);
+          } catch (originalError) {
+            throw new Error(`Não foi possível resolver o caminho do controller: ${freshJob.controller}. Erro: ${resolveError.message}`);
+          }
+        }
+        
         if (require.cache[controllerPath]) {
           delete require.cache[controllerPath];
         }
 
-        const controllerModule = require(freshJob.controller);
+        const controllerModule = require(resolvedControllerPath);
         const handler = controllerModule[freshJob.method];
 
         if (typeof handler !== 'function') {

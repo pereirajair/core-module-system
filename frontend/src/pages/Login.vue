@@ -90,7 +90,7 @@ onMounted(() => {
 
 const onSubmit = async () => {
   try {
-    const { useAuthStore } = await import('stores/auth');
+    const { useAuthStore } = await import('../stores/auth');
     const authStore = useAuthStore();
     
     await authStore.login(email.value, password.value);

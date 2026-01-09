@@ -12,25 +12,25 @@ Todos os módulos estão configurados como dependências do backend e serão ins
 ## Instalação Automática
 
 ```bash
-cd backend
+cd frontend
 npm install
 ```
 
-Os módulos serão baixados do GitHub e instalados em `node_modules/@gestor/`.
+Os módulos serão instalados de `mod/` como dependências locais em `node_modules/@gestor/`.
 
 ## Atualizar Módulos
 
 Para atualizar os módulos após mudanças no GitHub:
 
 ```bash
-cd backend
+cd frontend
 npm update @gestor/system @gestor/chat @gestor/locations @gestor/pessoa
 ```
 
 Ou para forçar reinstalação:
 
 ```bash
-cd backend
+cd frontend
 npm install @gestor/system@latest @gestor/chat@latest @gestor/locations@latest @gestor/pessoa@latest --force
 ```
 
@@ -51,11 +51,11 @@ npm install @gestor/pessoa@git+https://github.com/pereirajair/core-module-pessoa
 Para desenvolver localmente usando os módulos da pasta `modules/`:
 
 ```bash
-cd backend
-npm install file:../modules/system --save
-npm install file:../modules/chat --save
-npm install file:../modules/locations --save
-npm install file:../modules/pessoa --save
+cd frontend
+npm install file:../mod/system --save
+npm install file:../mod/chat --save
+npm install file:../mod/locations --save
+npm install file:../mod/pessoa --save
 ```
 
 Isso sobrescreverá as dependências do GitHub com as versões locais.
@@ -65,7 +65,7 @@ Isso sobrescreverá as dependências do GitHub com as versões locais.
 Para voltar a usar as versões do GitHub:
 
 ```bash
-cd backend
+cd frontend
 npm install @gestor/system@git+https://github.com/pereirajair/core-module-system.git --save
 npm install @gestor/chat@git+https://github.com/pereirajair/core-module-chat.git --save
 npm install @gestor/locations@git+https://github.com/pereirajair/core-module-locations.git --save

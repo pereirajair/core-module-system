@@ -6,8 +6,6 @@ A classe `GestorSys` fornece métodos padrões para operações comuns do sistem
 
 ```javascript
 const GestorSys = require('@gestor/system/utils/gestorSys');
-// ou
-const GestorSys = require('../../../old/system/utils/gestorSys'); // caminho relativo
 ```
 
 ## Métodos Disponíveis
@@ -21,7 +19,7 @@ Insere um log no sistema com opções customizadas.
 - `options.message` (string, obrigatório): Mensagem do log
 - `options.type` (number, opcional): Tipo do log (1=normal, 2=warning, 3=error). Padrão: 1
 - `options.userId` (number, opcional): ID do usuário relacionado
-- `options.organizationId` (number, opcional): ID da organização relacionada
+- `options.id_organization` (number, opcional): ID da organização relacionada
 - `options.systemId` (number, opcional): ID do sistema relacionado
 - `options.context` (object, opcional): Contexto adicional em formato objeto
 - `options.stackTrace` (string, opcional): Stack trace do erro (geralmente para type=3)
@@ -110,7 +108,7 @@ try {
 ### Exemplo 1: Log em Controller de Cron Job
 
 ```javascript
-// old/pessoa/controllers/cronController.js
+// mod/pessoa/controllers/cronController.js
 const GestorSys = require('@gestor/system/utils/gestorSys');
 
 module.exports = {
@@ -141,7 +139,7 @@ module.exports = {
 ### Exemplo 2: Log em Controller de API
 
 ```javascript
-// old/pessoa/controllers/pessoaController.js
+// mod/pessoa/controllers/pessoaController.js
 const GestorSys = require('@gestor/system/utils/gestorSys');
 
 exports.createPessoa = async (req, res) => {
@@ -151,7 +149,7 @@ exports.createPessoa = async (req, res) => {
     // Log de sucesso
     await GestorSys.logNormal('pessoa', `Pessoa ${pessoa.nome} criada`, {
       userId: req.user.id,
-      organizationId: req.user.organizationId,
+      id_organization: req.user.id_organization,
       context: { pessoaId: pessoa.id }
     });
     

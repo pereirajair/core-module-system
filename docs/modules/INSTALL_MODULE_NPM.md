@@ -2,7 +2,9 @@
 
 ## Visão Geral
 
-O sistema agora permite instalar módulos dinamicamente via npm através de uma API REST. Isso facilita a instalação de novos módulos sem precisar acessar o servidor diretamente.
+O sistema permite instalar módulos dinamicamente via npm através de uma API REST. Isso facilita a instalação de novos módulos sem precisar acessar o servidor diretamente.
+
+**Nota**: Os módulos são instalados no diretório `frontend/` onde o backend está integrado.
 
 ## Endpoints Disponíveis
 
@@ -199,7 +201,7 @@ O sistema valida:
    - Usuário deve ter as permissões necessárias
 
 3. **Execução:**
-   - Comando npm é executado no diretório `backend/`
+   - Comando npm é executado no diretório `frontend/`
    - Saída do npm é capturada e retornada
 
 ## Segurança
@@ -207,7 +209,7 @@ O sistema valida:
 - ✅ Autenticação obrigatória via JWT
 - ✅ Autorização baseada em permissões
 - ✅ Validação do formato do pacote
-- ✅ Execução em diretório controlado
+- ✅ Execução em diretório controlado (`frontend/`)
 - ✅ Captura de erros do npm
 
 ## Limitações
